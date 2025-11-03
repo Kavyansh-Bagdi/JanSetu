@@ -1,0 +1,8 @@
+.venv/
+.env
+
+# SQLite database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
