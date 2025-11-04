@@ -16,7 +16,7 @@ backend/
 │       ├── __init__.py
 │       ├── user.py            # User model
 │       ├── builder.py         # Builder model
-│       ├── manager.py         # Manager model
+│       ├── employee.py         # Employee model
 │       ├── road.py            # Road model
 │       ├── rating.py          # Rating model
 │       └── review.py          # Review model
@@ -49,9 +49,9 @@ backend/
    - `hyperlink`: Link to builder profile or website
    - Relationships: Has many roads
 
-3. **Manager Table**
-   - `unique_id` (PK): Unique ID of the manager
-   - `name`: Name of the manager
+3. **Employee Table**
+   - `unique_id` (PK): Unique ID of the employee
+   - `name`: Name of the employee
    - `post`: Designation/Post
    - `location`: Work location
    - Relationships: Manages many roads, maintains many roads
@@ -63,11 +63,11 @@ backend/
    - `started_date`: Construction start date
    - `ended_date`: Construction end date
    - `builder_id` (FK): References Builder(id)
-   - `manager_id` (FK): References Manager(unique_id)
-   - `maintained_by` (FK): References Manager(unique_id)
+   - `employee_id` (FK): References Employee(unique_id)
+   - `maintained_by` (FK): References Employee(unique_id)
    - `chief_engineer`: Name of the chief engineer
    - `date_verified`: Date the road was verified
-   - Relationships: Belongs to builder, has manager, has maintainer, has many ratings and reviews
+   - Relationships: Belongs to builder, has employee, has maintainer, has many ratings and reviews
 
 5. **Rating Table**
    - `rating_id` (PK): Unique ID of the rating entry

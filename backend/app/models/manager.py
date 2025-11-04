@@ -3,8 +3,8 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
-class Manager(Base):
-    __tablename__ = "manager"
+class Employee(Base):
+    __tablename__ = "employee"
 
     unique_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("user.user_id"), unique=True, nullable=False)
@@ -13,15 +13,16 @@ class Manager(Base):
     location = Column(String, nullable=False)  # Work location
     employee_code = Column(String, unique=True, nullable=True)  # Government employee code
     
+    
     # Relationships
     user = relationship("User", back_populates="manager_profile")
     
     managed_roads = relationship(
         "Road",
-        back_populates="manager",
-        foreign_keys="Road.manager_id"
+        back_populates="employee",
+        foreign_keys="Road.employee_id"
     )
     
 
     def __repr__(self):
-        return f"<Manager(unique_id={self.unique_id}, user_id={self.user_id}, post='{self.post}')>"
+        return f"<Employee(unique_id={self.unique_id}, user_id={self.user_id}, post='{self.post}')>"

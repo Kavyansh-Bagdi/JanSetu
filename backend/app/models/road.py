@@ -7,24 +7,21 @@ class Road(Base):
     __tablename__ = "road"
 
     road_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    coordinates = Column(JSON, nullable=False)  # Stores list of coordinate points
     cost = Column(DECIMAL(15, 2), nullable=False)
     started_date = Column(Date, nullable=False)
     ended_date = Column(Date, nullable=True)
     builder_id = Column(Integer, ForeignKey("builder.id"), nullable=False)
-    manager_id = Column(Integer, ForeignKey("manager.unique_id"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employee.unique_id"), nullable=False)
     maintained_by = Column(Integer, ForeignKey("builder.id"), nullable=False)
     chief_engineer = Column(String, nullable=False)
-    is_verified = Column(Integer, default=False)
-    verification_code = Column(String, nullable=True)
     date_verified = Column(Date, nullable=True)
-
+    status = Column(String, default="under_construction")  # "under_construction", "completed", "maintained"
     # Relationships
     builder = relationship("Builder", back_populates="roads", foreign_keys=[builder_id])
-    manager = relationship(
-        "Manager",
+    employee = relationship(
+        "Employee",
         back_populates="managed_roads",
-        foreign_keys=[manager_id]
+        foreign_keys=[employee_id]  
     )
     maintainer = relationship(
         "Builder",

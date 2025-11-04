@@ -71,11 +71,11 @@ def get_current_user(
 def get_current_manager(
     current_user: User = Depends(get_current_user)
 ) -> User:
-    """Ensure the current user is a manager"""
-    if current_user.user_type != "manager":
+    """Ensure the current user is a employee"""
+    if current_user.user_type != "employee":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This endpoint requires manager privileges"
+            detail="This endpoint requires employee privileges"
         )
     return current_user
 

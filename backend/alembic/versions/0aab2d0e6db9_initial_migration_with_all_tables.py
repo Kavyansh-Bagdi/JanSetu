@@ -30,14 +30,14 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_builder_id'), 'builder', ['id'], unique=False)
-    op.create_table('manager',
+    op.create_table('employee',
     sa.Column('unique_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('post', sa.String(), nullable=False),
     sa.Column('location', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('unique_id')
     )
-    op.create_index(op.f('ix_manager_unique_id'), 'manager', ['unique_id'], unique=False)
+    op.create_index(op.f('ix_manager_unique_id'), 'employee', ['unique_id'], unique=False)
     op.create_table('user',
     sa.Column('user_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -53,13 +53,13 @@ def upgrade() -> None:
     sa.Column('started_date', sa.Date(), nullable=False),
     sa.Column('ended_date', sa.Date(), nullable=True),
     sa.Column('builder_id', sa.Integer(), nullable=False),
-    sa.Column('manager_id', sa.Integer(), nullable=False),
+    sa.Column('employee_id', sa.Integer(), nullable=False),
     sa.Column('maintained_by', sa.Integer(), nullable=False),
     sa.Column('chief_engineer', sa.String(), nullable=False),
     sa.Column('date_verified', sa.Date(), nullable=True),
     sa.ForeignKeyConstraint(['builder_id'], ['builder.id'], ),
     sa.ForeignKeyConstraint(['maintained_by'], ['builder.id'], ),
-    sa.ForeignKeyConstraint(['manager_id'], ['manager.unique_id'], ),
+    sa.ForeignKeyConstraint(['employee_id'], ['employee.unique_id'], ),
     sa.PrimaryKeyConstraint('road_id')
     )
     op.create_index(op.f('ix_road_road_id'), 'road', ['road_id'], unique=False)
@@ -101,8 +101,8 @@ def downgrade() -> None:
     op.drop_table('road')
     op.drop_index(op.f('ix_user_user_id'), table_name='user')
     op.drop_table('user')
-    op.drop_index(op.f('ix_manager_unique_id'), table_name='manager')
-    op.drop_table('manager')
+    op.drop_index(op.f('ix_manager_unique_id'), table_name='employee')
+    op.drop_table('employee')
     op.drop_index(op.f('ix_builder_id'), table_name='builder')
     op.drop_table('builder')
     # ### end Alembic commands ###

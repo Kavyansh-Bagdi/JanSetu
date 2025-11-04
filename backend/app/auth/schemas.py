@@ -10,7 +10,7 @@ class UserCreateModel_By_Password(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     age: Optional[int] = None
     phone: Optional[str] = None
-    user_type: str = Field(default="citizen")  # "citizen" or "manager"
+    user_type: str = Field(default="citizen")  # "citizen" or "employee"
 
 
 class LoginRequest(BaseModel):

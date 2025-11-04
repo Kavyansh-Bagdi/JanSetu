@@ -62,7 +62,7 @@ sqlite3 jansetu.db
 ## Created Tables
 
 ✅ **user** - User information with authentication (email, password, user_type)
-✅ **manager** - Manager profiles linked to users (IS-A relationship)
+✅ **employee** - Employee profiles linked to users (IS-A relationship)
 ✅ **refresh_token** - Stateful JWT refresh tokens for authentication
 ✅ **builder** - Construction companies/builders
 ✅ **road** - Road projects with coordinates and details

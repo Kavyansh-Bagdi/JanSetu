@@ -1,4 +1,4 @@
-"""Add authentication and user-manager relationship
+"""Add authentication and user-employee relationship
 
 Revision ID: de7a8ef1de41
 Revises: 0aab2d0e6db9
@@ -39,8 +39,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_refresh_token_id'), 'refresh_token', ['id'], unique=False)
     op.create_index(op.f('ix_refresh_token_token'), 'refresh_token', ['token'], unique=True)
     
-    # Update manager table with batch_alter_table for SQLite compatibility
-    with op.batch_alter_table('manager', schema=None) as batch_op:
+    # Update employee table with batch_alter_table for SQLite compatibility
+    with op.batch_alter_table('employee', schema=None) as batch_op:
         batch_op.add_column(sa.Column('user_id', sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column('department', sa.String(), nullable=True))
         batch_op.add_column(sa.Column('employee_code', sa.String(), nullable=True))
@@ -50,7 +50,7 @@ def upgrade() -> None:
         batch_op.drop_column('name')
     
     # Make user_id NOT NULL after adding it
-    with op.batch_alter_table('manager', schema=None) as batch_op:
+    with op.batch_alter_table('employee', schema=None) as batch_op:
         batch_op.alter_column('user_id', existing_type=sa.Integer(), nullable=False)
     
     # Update road table
@@ -102,8 +102,8 @@ def downgrade() -> None:
         batch_op.drop_column('verification_code')
         batch_op.drop_column('is_verified')
     
-    # Revert manager table changes
-    with op.batch_alter_table('manager', schema=None) as batch_op:
+    # Revert employee table changes
+    with op.batch_alter_table('employee', schema=None) as batch_op:
         batch_op.add_column(sa.Column('name', sa.VARCHAR(), nullable=False))
         batch_op.drop_constraint('fk_manager_user_id', type_='foreignkey')
         batch_op.drop_constraint('uq_manager_user_id', type_='unique')
