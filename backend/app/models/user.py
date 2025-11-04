@@ -24,7 +24,7 @@ class User(Base):
     # Relationships
     ratings = relationship("Rating", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
-    # refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     
     # Employee relationship (one-to-one)
     manager_profile = relationship("Employee", back_populates="user", uselist=False, cascade="all, delete-orphan")

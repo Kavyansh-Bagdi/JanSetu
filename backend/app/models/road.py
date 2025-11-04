@@ -7,6 +7,9 @@ class Road(Base):
     __tablename__ = "road"
 
     road_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    # Geo coordinates or shape for the road. Stored as JSON. In the DB this column
+    # already exists and must be non-null, so we keep it here to match the schema.
+    coordinates = Column(JSON, nullable=False)
     cost = Column(DECIMAL(15, 2), nullable=False)
     started_date = Column(Date, nullable=False)
     ended_date = Column(Date, nullable=True)
