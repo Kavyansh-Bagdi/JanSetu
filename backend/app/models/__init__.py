@@ -4,5 +4,6 @@ from app.models.manager import Manager
 from app.models.road import Road
 from app.models.rating import Rating
 from app.models.review import Review
+from app.models.refresh_token import RefreshToken
 
-__all__ = ["User", "Builder", "Manager", "Road", "Rating", "Review"]
+__all__ = ["User", "Builder", "Manager", "Road", "Rating", "Review", "RefreshToken"]

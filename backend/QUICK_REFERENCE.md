@@ -61,9 +61,10 @@ sqlite3 jansetu.db
 
 ## Created Tables
 
-✅ **user** - User information and contributions
+✅ **user** - User information with authentication (email, password, user_type)
+✅ **manager** - Manager profiles linked to users (IS-A relationship)
+✅ **refresh_token** - Stateful JWT refresh tokens for authentication
 ✅ **builder** - Construction companies/builders
-✅ **manager** - Government managers/officials
 ✅ **road** - Road projects with coordinates and details
 ✅ **rating** - User ratings for roads
 ✅ **review** - User reviews with media for roads
@@ -73,3 +74,4 @@ All tables have been created with:
 - Foreign key relationships
 - Proper indexes
 - Cascade delete where appropriate
+- Authentication and authorization support

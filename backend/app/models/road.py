@@ -15,6 +15,8 @@ class Road(Base):
     manager_id = Column(Integer, ForeignKey("manager.unique_id"), nullable=False)
     maintained_by = Column(Integer, ForeignKey("builder.id"), nullable=False)
     chief_engineer = Column(String, nullable=False)
+    is_verified = Column(Integer, default=False)
+    verification_code = Column(String, nullable=True)
     date_verified = Column(Date, nullable=True)
 
     # Relationships
