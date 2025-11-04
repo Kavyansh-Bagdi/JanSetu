@@ -16,7 +16,7 @@ class User(Base):
     user_type = Column(String, default="citizen")  # "citizen" or "manager"
     total_contributions = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
