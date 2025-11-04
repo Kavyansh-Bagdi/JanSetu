@@ -11,8 +11,11 @@ function App() {
   const [watchId, setWatchId] = useState(null);
   const [path, setPath] = useState([]);
   const [map, setMap] = useState(null);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+
   const markerRef = useRef(null);
   const polylineRef = useRef(null);
+  const userInteractionTimeout = useRef(null);
 
   // --- Initial location ---
   useEffect(() => {
@@ -44,12 +47,10 @@ function App() {
       const data = await res.json();
       if (!data.snappedPoints) return points;
 
-      // Convert to standard lat/lng format
-      const snapped = data.snappedPoints.map((p) => ({
+      return data.snappedPoints.map((p) => ({
         lat: p.location.latitude,
         lng: p.location.longitude,
       }));
-      return snapped;
     } catch (err) {
       console.error("Snap to Roads failed:", err);
       return points;
@@ -64,11 +65,9 @@ function App() {
           const { latitude, longitude } = pos.coords;
           const newPoint = { lat: latitude, lng: longitude };
 
-          // Update local path
           setPath((prev) => {
             const updated = [...prev, newPoint];
 
-            // Smooth path every 5 new points
             if (updated.length % 5 === 0) {
               snapToRoads(updated).then((snapped) => {
                 setPath(snapped);
@@ -78,11 +77,8 @@ function App() {
               polylineRef.current.setPath(updated);
             }
 
-            // Move marker
             if (markerRef.current) markerRef.current.setPosition(newPoint);
-
-            // Keep map centered
-            if (map) map.panTo(newPoint);
+            if (map && !isUserInteracting) map.panTo(newPoint);
 
             return updated;
           });
@@ -98,10 +94,8 @@ function App() {
 
   // --- Pause tracking ---
   const pauseTracking = () => {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
-      setWatchId(null);
-    }
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    setWatchId(null);
     setIsTracking(false);
   };
 
@@ -122,6 +116,22 @@ function App() {
       map: mapInstance,
       position: null,
     });
+
+    mapInstance.addListener("dragstart", () => {
+      setIsUserInteracting(true);
+      clearTimeout(userInteractionTimeout.current);
+    });
+    mapInstance.addListener("zoom_changed", () => {
+      setIsUserInteracting(true);
+      clearTimeout(userInteractionTimeout.current);
+    });
+
+    mapInstance.addListener("idle", () => {
+      clearTimeout(userInteractionTimeout.current);
+      userInteractionTimeout.current = setTimeout(() => {
+        setIsUserInteracting(false);
+      }, 3000);
+    });
   }, []);
 
   const onUnmount = useCallback(() => {
@@ -132,7 +142,7 @@ function App() {
 
   return (
     <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-      <div style={{ position: "relative" }}>
+      <div className="relative w-screen h-screen">
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={path[0] || { lat: 0, lng: 0 }}
@@ -145,22 +155,22 @@ function App() {
           }}
         />
 
-        {/* Controls */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            left: 20,
-            background: "white",
-            padding: "10px",
-            borderRadius: "8px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-          }}
-        >
+        {/* Control buttons */}
+        <div className="absolute bottom-5 left-5 bg-white rounded-lg shadow-md p-3 flex gap-3">
           {!isTracking ? (
-            <button onClick={startTracking}>▶ Start</button>
+            <button
+              onClick={startTracking}
+              className="px-4 py-2 bg-green-500 text-white font-semibold rounded hover:bg-green-600 transition"
+            >
+              ▶ Start
+            </button>
           ) : (
-            <button onClick={pauseTracking}>⏸ Pause</button>
+            <button
+              onClick={pauseTracking}
+              className="px-4 py-2 bg-yellow-500 text-white font-semibold rounded hover:bg-yellow-600 transition"
+            >
+              ⏸ Pause
+            </button>
           )}
         </div>
       </div>
