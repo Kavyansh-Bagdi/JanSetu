@@ -16,7 +16,8 @@ class Road(Base):
     builder_id = Column(Integer, ForeignKey("builder.id"), nullable=False)
     employee_id = Column(Integer, ForeignKey("employee.unique_id"), nullable=False)
     maintained_by = Column(Integer, ForeignKey("builder.id"), nullable=False)
-    chief_engineer = Column(String, nullable=False)
+    # Allow chief_engineer to be nullable initially; builders will assign this later
+    chief_engineer = Column(String, nullable=True)
     date_verified = Column(Date, nullable=True)
     status = Column(String, default="under_construction")  # "under_construction", "completed", "maintained"
     # Relationships

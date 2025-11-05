@@ -13,6 +13,5 @@ class RoadCreate(BaseModel):
     # During development we allow providing the manager's employee.unique_id
     # so routes can be tested without authentication. In production remove/ignore.
     manager_unique_id: Optional[int] = None
-    status: str = Field(default="under_construction")
-    chief_engineer: str = Field(default="Unknown", max_length=200)
+    # status and chief_engineer are controlled by builders; do not allow employees to set them here
     date_verified: Optional[date] = None
