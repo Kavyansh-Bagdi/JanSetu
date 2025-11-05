@@ -1,0 +1,49 @@
+# Test commands for employee routes (development)
+
+# 1) Start the server (run this in Terminal A from the backend folder):
+#    source .venv/bin/activate   # if you use the virtualenv
+#    python -m uvicorn main:app --reload
+
+# 2) Create a Road (POST /employee/roads)
+# Replace builder_id and inspector_assigned/manager_unique_id with real IDs from your DB.
+# Use strings for Decimal values (safe for Pydantic Decimal).
+
+curl -s -X POST 'http://127.0.0.1:8000/employee/roads' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "builder_id": 1,
+    "cost": "150000.00",
+    "started_date": "2025-11-04",
+    "inspector_assigned": 2,
+    "chief_engineer": "A. Engineer"
+  }' | jq
+
+# Alternative: create using the manager_unique_id (dev-only)
+curl -s -X POST 'http://127.0.0.1:8000/employee/roads' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "builder_id": 1,
+    "cost": "120000.00",
+    "started_date": "2025-11-04",
+    "manager_unique_id": 1,
+    "chief_engineer": "A. Engineer"
+  }' | jq
+
+# 3) List roads assigned to an inspector (GET /employee/inspector/roads)
+# Replace inspector_unique_id with the employee.unique_id for the inspector.
+curl -s 'http://127.0.0.1:8000/employee/inspector/roads?inspector_unique_id=2' | jq
+
+# 4) Quick DB checks (use these if you want to inspect jansetu.db directly)
+# Show table columns for road
+sqlite3 jansetu.db "PRAGMA table_info('road');"
+
+# Show latest 5 roads
+sqlite3 jansetu.db "SELECT road_id, coordinates, cost, started_date, employee_id, status FROM road ORDER BY road_id DESC LIMIT 5;"
+
+# Inspect a specific road
+# sqlite3 jansetu.db "SELECT * FROM road WHERE road_id = 1;"
+
+# Notes
+# - If you get 422 errors: check JSON formatting, date format (YYYY-MM-DD), and required fields.
+# - If you get 400/404: verify builder and employee unique ids exist in the DB.
+# - Use the interactive docs at http://127.0.0.1:8000/docs for manual testing.

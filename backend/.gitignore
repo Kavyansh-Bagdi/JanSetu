@@ -1,0 +1,20 @@
+.venv/
+.env
+.pycache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# also ignore any nested pycache directories and common Python caches
+**/__pycache__/
+**/.pycache__/
+.pytest_cache/
+.mypy_cache/
+.cache/
+
+# SQLite database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
