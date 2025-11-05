@@ -189,5 +189,6 @@ class UserService:
     def all_road_data(self, session: Session):
         """Sending all roads data with [road_id, polyline_data]"""
 
-        roads_data = session.query(Road.road_id,Road.polyline_data)
-        return roads_data
+        roads_data = session.query(Road.road_id, Road.polyline_data).all()
+        # Convert to list of dictionaries for JSON serialization
+        return [{"road_id": road_id, "polyline_data": polyline_data} for road_id, polyline_data in roads_data]

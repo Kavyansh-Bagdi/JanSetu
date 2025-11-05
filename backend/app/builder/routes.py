@@ -5,6 +5,7 @@ from typing import List
 from app.core.database import get_db
 from app.models.builder import Builder
 from app.models.road import Road
+from app.models.rating import Rating
 from .schemas import BuilderRoadUpdate
 
 builder_router = APIRouter(prefix="/builder", tags=["Builder"])
@@ -25,6 +26,8 @@ def get_builder_roads(builder_id: int, session: Session = Depends(get_db)):
 
     result = []
     for r in roads:
+        ratings = session.query(Rating).filter(Rating.road_id == r.road_id).all()
+        average_rating = sum(float(rating.rating) for rating in ratings) / len(ratings) if ratings else None
         result.append({
             "road_id": getattr(r, "road_id", None),
             "builder_id": getattr(r, "builder_id", None),
@@ -34,6 +37,8 @@ def get_builder_roads(builder_id: int, session: Session = Depends(get_db)):
             "ended_date": str(getattr(r, "ended_date", None)) if getattr(r, "ended_date", None) else None,
             "status": getattr(r, "status", None),
             "chief_engineer": getattr(r, "chief_engineer", None),
+            "date_verified": str(getattr(r, "date_verified", None)) if getattr(r, "date_verified", None) else None,
+            "average_rating": average_rating  
         })
 
     return {"count": len(result), "roads": result}

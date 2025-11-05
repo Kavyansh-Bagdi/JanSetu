@@ -54,11 +54,10 @@ def create_road(
         ended_date=payload.ended_date,
         builder_id=builder.id,
         employee_id=assigned_employee_unique,
-        polyline_data = payload.polyline
-        coordinates={},
+        polyline_data=payload.polyline,
         maintained_by=builder.id,
         chief_engineer="",
-        date_verified=payload.date_verified,
+        date_verified=payload.date_verified
     )
 
     session.add(road)

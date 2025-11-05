@@ -17,40 +17,8 @@ from typing import List, Optional
 
 user_router = APIRouter(prefix="/user", tags=["User"])
 user_service = UserService()
-
-
-@user_router.get("/roads/", status_code=status.HTTP_200_OK)
-def get_local_roads(
-    location: str = None,
-    limit: int = 100,
-    offset: int = 0,
-    session: Session = Depends(get_db)
-):
-    """
-    Get list of roads, optionally filtered by location.
-    TODO: Implement location-based filtering logic.
-    """
-    query = session.query(Road)
-    
-    # TODO: Add location-based filtering when location parameter is provided
-    # if location:
-    #     query = query.filter(Road.coordinates.contains(location))
-    
-    roads = query.offset(offset).limit(limit).all()
-    
-    return {
-        "total": len(roads),
-        "roads": [
-            {
-                "road_id": road.road_id,
-                "builder_id": road.builder_id,
-                "status": road.status,
-                "chief_engineer": road.chief_engineer,
-                "started_date": str(road.started_date),
-                "ended_date": str(road.ended_date) if road.ended_date else None
-            }
-            for road in roads
-        ]
+current_user = {
+        "user_id": 1
     }
 
 
@@ -99,15 +67,16 @@ def get_road_info(
 @user_router.post('/roads/rate/', response_model=RatingResponse, status_code=status.HTTP_201_CREATED)
 def rate_road(
     payload: RatingCreate,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     session: Session = Depends(get_db)
 ):
     """
     Rate a road. Requires authentication.
     """
+
     rating = user_service.create_rating(
         road_id=payload.road_id,
-        user_id=current_user.user_id,
+        user_id=current_user['user_id'],
         rating_value=payload.rating,
         location=payload.location,
         session=session
@@ -120,7 +89,7 @@ async def review_road(
     road_id: int = Form(...),
     tags: Optional[str] = Form(None),
     media_file: Optional[UploadFile] = File(None),
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     session: Session = Depends(get_db)
 ):
     """
@@ -132,7 +101,7 @@ async def review_road(
     """
     review = await user_service.create_review(
         road_id=road_id,
-        user_id=current_user.user_id,
+        user_id=current_user['user_id'],
         media_file=media_file,
         tags=tags,
         session=session

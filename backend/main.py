@@ -5,7 +5,10 @@ from app.core.database import engine, Base
 from app.auth import auth_router
 from app.employee.routes import employee_router
 from app.builder.routes import builder_router
-
+from app.user.routes import user_router
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from fastapi import Depends
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG
@@ -24,6 +27,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(employee_router)
 app.include_router(builder_router)
+app.include_router(user_router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -36,17 +40,21 @@ async def startup_event():
 
 
 @app.get("/")
-async def root():
+async def root(session: Session = Depends(get_db)):
+    from app.user.services import UserService
+    user_service = UserService()
+    all_roads = user_service.all_road_data(session=session)
+    #will send all roads data as json
     return {
         "message": f"Welcome to {settings.APP_NAME} API",
-        "docs": "/docs"
+        "docs": "/docs",
+        "all_roads_data": all_roads
     }
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
 
 if __name__ == "__main__":
     import uvicorn
