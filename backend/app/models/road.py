@@ -7,20 +7,17 @@ class Road(Base):
     __tablename__ = "road"
 
     road_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    # Geo coordinates or shape for the road. Stored as JSON. In the DB this column
-    # already exists and must be non-null, so we keep it here to match the schema.
-    coordinates = Column(JSON, nullable=False)
+    polyline_data = Column(JSON, nullable=False)
     cost = Column(DECIMAL(15, 2), nullable=False)
     started_date = Column(Date, nullable=False)
     ended_date = Column(Date, nullable=True)
     builder_id = Column(Integer, ForeignKey("builder.id"), nullable=False)
     employee_id = Column(Integer, ForeignKey("employee.unique_id"), nullable=False)
     maintained_by = Column(Integer, ForeignKey("builder.id"), nullable=False)
-    # Allow chief_engineer to be nullable initially; builders will assign this later
     chief_engineer = Column(String, nullable=True)
     date_verified = Column(Date, nullable=True)
-    status = Column(String, default="under_construction")  # "under_construction", "completed", "maintained"
-    # Relationships
+    status = Column(String, default="under_construction")  
+    
     builder = relationship("Builder", back_populates="roads", foreign_keys=[builder_id])
     employee = relationship(
         "Employee",

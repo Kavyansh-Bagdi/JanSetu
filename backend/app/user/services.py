@@ -186,4 +186,8 @@ class UserService:
         
         return Decimal(str(avg_rating)).quantize(Decimal('0.1')) if avg_rating else None
 
+    def all_road_data(self, session: Session):
+        """Sending all roads data with [road_id, polyline_data]"""
 
+        roads_data = session.query(Road.road_id,Road.polyline_data)
+        return roads_data

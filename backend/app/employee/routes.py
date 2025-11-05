@@ -17,19 +17,20 @@ def create_road(
     """
     Manager (employee) creates a Road. inspector_assigned is optional.
     """
-    # Development mode: optionally resolve manager by provided manager_unique_id in payload
+    
     manager_profile = None
     if getattr(payload, "manager_unique_id", None) is not None:
         manager_profile = session.query(Employee).filter(Employee.unique_id == payload.manager_unique_id).first()
         if not manager_profile:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Manager profile (manager_unique_id) not found")
 
-    # verify builder exists
     builder = session.query(Builder).filter(Builder.id == payload.builder_id).first()
     if not builder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Builder not found")
 
-    # validate inspector if provided
+    if len(payload.polyline) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid Polyline")
+    
     inspector_unique = None
     if payload.inspector_assigned is not None:
         inspector = session.query(Employee).filter(Employee.unique_id == payload.inspector_assigned).first()
@@ -37,8 +38,6 @@ def create_road(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspector employee not found")
         inspector_unique = inspector.unique_id
 
-    # Decide the employee_unique to assign to the road. Road.employee_id is NOT NULL in the DB,
-    # so require either inspector_assigned or manager_unique_id in development mode.
     if inspector_unique is not None:
         assigned_employee_unique = inspector_unique
     elif manager_profile is not None:
@@ -55,11 +54,9 @@ def create_road(
         ended_date=payload.ended_date,
         builder_id=builder.id,
         employee_id=assigned_employee_unique,
-        # provide empty coordinates by default in development so NOT NULL constraint is satisfied
+        polyline_data = payload.polyline
         coordinates={},
         maintained_by=builder.id,
-        # chief_engineer and status are assigned/managed by builders. Provide empty string for chief_engineer
-        # to satisfy existing DB NOT NULL constraint in development. Replace with proper migration later.
         chief_engineer="",
         date_verified=payload.date_verified,
     )
@@ -89,10 +86,6 @@ def get_inspector_roads(
     inspector = session.query(Employee).filter(Employee.unique_id == inspector_unique_id).first()
     if not inspector:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inspector profile not found for provided unique id")
-
-    # Optional: enforce role check if Employee has a role field
-    # if getattr(inspector, "role", None) and inspector.role != "inspector":
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not an inspector")
 
     roads = session.query(Road).filter(Road.employee_id == inspector.unique_id).all()
 
