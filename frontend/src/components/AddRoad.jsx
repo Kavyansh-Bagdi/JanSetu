@@ -7,51 +7,51 @@ function AddRoad({ mapRef }) {
 
   const [roads, setRoads] = useState([]);
   const [currentPoints, setCurrentPoints] = useState([]);
-
-  // Form state
   const [editingRoad, setEditingRoad] = useState(null);
   const [formData, setFormData] = useState({
     builder_id: "",
     cost: "",
     started_date: "",
   });
+  const [statusMessage, setStatusMessage] = useState("");
 
-  const [statusMessage, setStatusMessage] = useState(""); // To show success/error
+  // Snap-to-road function
+  const snapToRoads = async (points) => {
+    if (points.length < 2) return;
 
+    const pathString = points.map((p) => `${p.lat},${p.lng}`).join("|");
+    try {
+      const res = await fetch(
+        `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await res.json();
+      if (data.snappedPoints) {
+        const snapped = data.snappedPoints.map((p) => ({
+          lat: p.location.latitude,
+          lng: p.location.longitude,
+        }));
+        setCurrentPoints(snapped);
+      }
+    } catch (err) {
+      console.error("Error snapping to roads:", err);
+    }
+  };
+
+  // Map click listener & undo
   useEffect(() => {
     if (role !== "manager" || !mapRef.current) return;
 
     const map = mapRef.current;
 
-    // Map click listener
-    const listener = map.addListener("click", async (e) => {
+    const listener = map.addListener("click", (e) => {
       const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
       const updatedPoints = [...currentPoints, newPoint];
       setCurrentPoints(updatedPoints);
 
-      if (updatedPoints.length >= 2) {
-        const pathString = updatedPoints.map((p) => `${p.lat},${p.lng}`).join("|");
-
-        try {
-          const res = await fetch(
-            `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
-          );
-          const data = await res.json();
-
-          if (data.snappedPoints) {
-            const snapped = data.snappedPoints.map((p) => ({
-              lat: p.location.latitude,
-              lng: p.location.longitude,
-            }));
-            setCurrentPoints(snapped);
-          }
-        } catch (err) {
-          console.error("Error snapping to roads:", err);
-        }
-      }
+      // Snap to roads if >= 2 points
+      if (updatedPoints.length >= 2) snapToRoads(updatedPoints);
     });
 
-    // Ctrl+Z undo listener
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
@@ -60,7 +60,6 @@ function AddRoad({ mapRef }) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       listener.remove();
       window.removeEventListener("keydown", handleKeyDown);
@@ -69,33 +68,38 @@ function AddRoad({ mapRef }) {
 
   if (role !== "manager") return null;
 
-  // When clicking save, open form and keep currentPoints
   const saveCurrentRoad = () => {
     if (currentPoints.length > 0) {
       setEditingRoad(currentPoints);
-      setStatusMessage(""); // Clear previous status
+      setStatusMessage("");
     }
+  };
+
+  const cancelEditing = () => {
+    setEditingRoad(null);
+    setCurrentPoints([]);
+    setStatusMessage("Road creation cancelled");
   };
 
   const submitRoadForm = async () => {
     if (!editingRoad) return;
 
     const payload = {
-      ...formData,
-      polyline: editingRoad,
+      builder_id: parseInt(formData.builder_id, 10),
+      cost: parseFloat(formData.cost),
+      started_date: formData.started_date,
+      polyline: JSON.stringify(editingRoad),
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_FAST_API}/add_road`, {
+      const res = await fetch(`${import.meta.env.VITE_FAST_API}/employee/add_road`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        // Save to map
         setRoads([...roads, editingRoad]);
-        // Clear the current polyline from map
         setCurrentPoints([]);
         setEditingRoad(null);
         setFormData({ builder_id: "", cost: "", started_date: "" });
@@ -110,18 +114,12 @@ function AddRoad({ mapRef }) {
     }
   };
 
-  const cancelEditing = () => {
-    setEditingRoad(null);
-    setCurrentPoints([]); // Remove polyline from map
-    setStatusMessage("Road creation cancelled");
-  };
-
   return (
     <>
-      {/* Save Road Button */}
+      {/* Save Button */}
       <button
         onClick={saveCurrentRoad}
-        className="absolute top-24 right-4 z-50 w-14 h-14 flex items-center justify-center rounded-full cursor-pointer bg-green-600 text-white hover:bg-green-500"
+        className="absolute top-24 right-4 z-50 w-14 h-14 flex items-center justify-center rounded-full bg-green-600 text-white hover:bg-green-500"
       >
         Save
       </button>
@@ -144,9 +142,7 @@ function AddRoad({ mapRef }) {
               <input
                 type="number"
                 value={formData.builder_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, builder_id: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, builder_id: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </label>
@@ -156,9 +152,7 @@ function AddRoad({ mapRef }) {
               <input
                 type="number"
                 value={formData.cost}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </label>
@@ -168,24 +162,16 @@ function AddRoad({ mapRef }) {
               <input
                 type="date"
                 value={formData.started_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, started_date: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, started_date: e.target.value })}
                 className="w-full border px-2 py-1 rounded mt-1"
               />
             </label>
 
             <div className="flex justify-end gap-2">
-              <button
-                onClick={cancelEditing}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-              >
+              <button onClick={cancelEditing} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
                 Cancel
               </button>
-              <button
-                onClick={submitRoadForm}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500"
-              >
+              <button onClick={submitRoadForm} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500">
                 Submit
               </button>
             </div>
@@ -198,11 +184,7 @@ function AddRoad({ mapRef }) {
         <Polyline
           key={index}
           path={road}
-          options={{
-            strokeColor: "#FF0000",
-            strokeOpacity: 1,
-            strokeWeight: 4,
-          }}
+          options={{ strokeColor: "#FF0000", strokeOpacity: 1, strokeWeight: 4 }}
         />
       ))}
 
@@ -210,12 +192,7 @@ function AddRoad({ mapRef }) {
       {currentPoints.length > 0 && (
         <Polyline
           path={currentPoints}
-          options={{
-            strokeColor: "#0000FF",
-            strokeOpacity: 0.7,
-            strokeWeight: 3,
-            strokeDasharray: [5, 5],
-          }}
+          options={{ strokeColor: "#0000FF", strokeOpacity: 0.7, strokeWeight: 3, strokeDasharray: [5, 5] }}
         />
       )}
     </>
