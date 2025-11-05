@@ -1,5 +1,7 @@
-function Home() {
-  return <h1>Welcome to Home</h1>;
+function Home(){
+    return (
+        <div>Landing Page, Coming Soon</div>
+    )
 }
 
 export default Home;
