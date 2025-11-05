@@ -4,7 +4,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.auth import auth_router
 from app.employee.routes import employee_router
-from app.user.routes import user_router
+from app.builder.routes import builder_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -23,7 +23,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(employee_router)
-app.include_router(user_router)
+app.include_router(builder_router)
 
 @app.on_event("startup")
 async def startup_event():
