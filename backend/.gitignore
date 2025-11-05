@@ -13,11 +13,5 @@ __pycache__/
 .mypy_cache/
 .cache/
 
-# SQLite database
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
-
 storage/
 alembic/
