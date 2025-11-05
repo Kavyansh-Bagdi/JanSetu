@@ -47,3 +47,8 @@ sqlite3 jansetu.db "SELECT road_id, coordinates, cost, started_date, employee_id
 # - If you get 422 errors: check JSON formatting, date format (YYYY-MM-DD), and required fields.
 # - If you get 400/404: verify builder and employee unique ids exist in the DB.
 # - Use the interactive docs at http://127.0.0.1:8000/docs for manual testing.
+
+
+alembic -c alembic.ini upgrade head
+alembic -c alembic.ini current
+alembic -c alembic.ini revision --autogenerate -m "add foo column"
