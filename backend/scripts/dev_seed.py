@@ -9,25 +9,35 @@ Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 try:
-    b = Builder(name="ABC Constructions")
-    db.add(b)
-    db.commit()
-    db.refresh(b)
-    # create manager user & employee
-    u1 = User(name="Dev Manager", email="manager@test", phone="9999999999", hashed_password="devpass", user_type="employee")
-    db.add(u1)
-    db.commit()
-    db.refresh(u1)
-    e1 = Employee(user_id=u1.user_id, post="Manager", department="Roads", location="CityX", employee_code="EMP-MGR-001")
-    db.add(e1)
-    # inspector
-    u2 = User(name="Dev Inspector", email="inspector@test", phone="8888888888", hashed_password="devpass", user_type="employee")
-    db.add(u2)
-    db.commit()
-    db.refresh(u2)
-    e2 = Employee(user_id=u2.user_id, post="Inspector", department="Roads", location="CityX", employee_code="EMP-INS-002")
-    db.add(e2)
-    db.commit()
+    # create builder if not exists
+    b = db.query(Builder).filter(Builder.name == "ABC Constructions").first()
+    if not b:
+        b = Builder(name="ABC Constructions")
+        db.add(b)
+        db.commit()
+        db.refresh(b)
+
+    # helper to get-or-create a user and employee
+    def get_or_create_user_and_employee(name, email, phone, post, employee_code):
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            user = User(name=name, email=email, phone=phone, hashed_password="devpass", user_type="employee")
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        emp = db.query(Employee).filter(Employee.user_id == user.user_id).first()
+        if not emp:
+            emp = Employee(user_id=user.user_id, post=post, department="Roads", location="CityX", employee_code=employee_code)
+            db.add(emp)
+            db.commit()
+            db.refresh(emp)
+
+        return user, emp
+
+    u1, e1 = get_or_create_user_and_employee("Dev Manager", "manager@test", "9999999999", "Manager", "EMP-MGR-001")
+    u2, e2 = get_or_create_user_and_employee("Dev Inspector", "inspector@test", "8888888888", "Inspector", "EMP-INS-002")
+
     print('Seeded builder id:', b.id)
     print('Seeded manager unique_id:', e1.unique_id, 'inspector unique_id:', e2.unique_id)
 finally:

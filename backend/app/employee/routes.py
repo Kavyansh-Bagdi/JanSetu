@@ -58,9 +58,10 @@ def create_road(
         # provide empty coordinates by default in development so NOT NULL constraint is satisfied
         coordinates={},
         maintained_by=builder.id,
-        chief_engineer=payload.chief_engineer,
+        # chief_engineer and status are assigned/managed by builders. Provide empty string for chief_engineer
+        # to satisfy existing DB NOT NULL constraint in development. Replace with proper migration later.
+        chief_engineer="",
         date_verified=payload.date_verified,
-        status=payload.status,
     )
 
     session.add(road)
@@ -70,8 +71,8 @@ def create_road(
     return {
         "road_id": road.road_id,
         "builder_id": road.builder_id,
-        "employee_id": road.employee_id,
-        "status": road.status,
+    "employee_id": road.employee_id,
+    "chief_engineer": getattr(road, "chief_engineer", None),
         "started_date": str(road.started_date),
         "ended_date": str(road.ended_date) if road.ended_date else None,
     }
