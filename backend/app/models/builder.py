@@ -11,7 +11,9 @@ class Builder(Base):
     average_rating = Column(DECIMAL(3, 2), default=0.0)
     total_projects = Column(Integer, default=0)
     hyperlink = Column(String, nullable=True)
-
+    email = Column(String, unique=True, nullable=False, index=True)
+    phone = Column(String, unique=True, nullable=True, index=True)
+    hashed_password = Column(String, nullable=False)
     # Relationships
     roads = relationship("Road", back_populates="builder", foreign_keys="Road.builder_id")
     
