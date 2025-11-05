@@ -9,7 +9,7 @@ from .schemas import RoadCreate
 employee_router = APIRouter(prefix="/employee", tags=["Employee"])
 
 
-@employee_router.post("/roads", status_code=status.HTTP_201_CREATED)
+@employee_router.post("/add_road", status_code=status.HTTP_201_CREATED)
 def create_road(
     payload: RoadCreate,
     session: Session = Depends(get_db),
