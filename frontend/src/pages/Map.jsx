@@ -1,8 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRole } from "../components/RoleContext.jsx";
 import { GoogleMap, LoadScript } from "@react-google-maps/api";
 import NavBar from "../components/Navbar";
 import AddRoad from "../components/AddRoad";
+import ViewRoads from "../components/ViewRoads";
+import ViewInspectorRoads from "../components/ViewInspectorRoads";
+// import ViewBuilderRoads from "../components/ViewBuilderRoads";
 
 const containerStyle = {
   width: "100%",
@@ -16,17 +19,35 @@ const defaultCenter = {
 
 function Map() {
   const mapRef = useRef(null);
+  const polylineRefs = useRef([]);
+
   const [addRoadMode, setAddRoadMode] = useState(false);
-  const { role } = useRole(); // safe now, wrapped by RoleProvider in App.jsx
+  const { role, userId } = useRole();
 
   const handleMapLoad = (map) => {
     mapRef.current = map;
   };
 
+  const clearPolylines = () => {
+    if (polylineRefs.current.length > 0) {
+      polylineRefs.current.forEach((polyline) => polyline.setMap(null));
+      polylineRefs.current = [];
+    }
+  };
+
+  // 🧹 Clear polylines when role or add mode changes
+  useEffect(() => {
+    clearPolylines();
+  }, [role, addRoadMode]);
+
+  // 🔁 Force GoogleMap to remount whenever role changes
+  const mapKey = `map-${role}`;
+
   return (
     <>
       <NavBar />
-      {/* Add Road Button */}
+
+      {/* Manager can toggle Add Mode */}
       {role === "manager" && (
         <button
           onClick={() => setAddRoadMode((prev) => !prev)}
@@ -40,9 +61,9 @@ function Map() {
         </button>
       )}
 
-
       <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
         <GoogleMap
+          key={mapKey} // 👈 Forces re-render when role changes
           mapContainerStyle={containerStyle}
           center={defaultCenter}
           zoom={17}
@@ -56,8 +77,31 @@ function Map() {
             rotateControl: false,
           }}
         >
-          {/* Only activate AddRoad when button is toggled */}
-          {addRoadMode && <AddRoad mapRef={mapRef} />}
+          {/* 👇 ROLE-BASED MAP BEHAVIOR */}
+
+          {/* Manager can only add roads — no roads visible */}
+          {role === "manager" && addRoadMode && <AddRoad mapRef={mapRef} />}
+
+          {/* Inspector sees only assigned roads */}
+          {role === "inspector" && (
+            <ViewInspectorRoads
+              inspectorId={2}
+              onPolylineLoad={(p) => polylineRefs.current.push(p)}
+            />
+          )}
+
+          {/* Builder sees only their assigned roads */}
+          {/* {role === "builder" && (
+            <ViewBuilderRoads
+              builderId={userId || 1}
+              onPolylineLoad={(p) => polylineRefs.current.push(p)}
+            />
+          )} */}
+
+          {/* Citizen sees all roads */}
+          {role === "citizen" && (
+            <ViewRoads onPolylineLoad={(p) => polylineRefs.current.push(p)} />
+          )}
         </GoogleMap>
       </LoadScript>
     </>

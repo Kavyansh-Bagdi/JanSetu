@@ -3,23 +3,26 @@ import { useRole } from "../components/RoleContext.jsx";
 import { Polyline } from "@react-google-maps/api";
 
 function AddRoad({ mapRef }) {
-  const { role } = useRole();
+  const { role } = useRole(); // Only using role here since manager_id is manual input
 
   const [roads, setRoads] = useState([]);
   const [currentPoints, setCurrentPoints] = useState([]);
   const [editingRoad, setEditingRoad] = useState(null);
   const [formData, setFormData] = useState({
+    name: "",
+    location: "",
     builder_id: "",
-    cost: "",
-    started_date: "",
+    inspector_id: "",
+    manager_id: "",
+    status: "planned",
   });
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Snap-to-road function
+  // --- Snap to Road API ---
   const snapToRoads = async (points) => {
     if (points.length < 2) return;
-
     const pathString = points.map((p) => `${p.lat},${p.lng}`).join("|");
+
     try {
       const res = await fetch(
         `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
@@ -37,18 +40,15 @@ function AddRoad({ mapRef }) {
     }
   };
 
-  // Map click listener & undo
+  // --- Map click listener ---
   useEffect(() => {
     if (role !== "manager" || !mapRef.current) return;
 
     const map = mapRef.current;
-
     const listener = map.addListener("click", (e) => {
       const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
       const updatedPoints = [...currentPoints, newPoint];
       setCurrentPoints(updatedPoints);
-
-      // Snap to roads if >= 2 points
       if (updatedPoints.length >= 2) snapToRoads(updatedPoints);
     });
 
@@ -68,31 +68,53 @@ function AddRoad({ mapRef }) {
 
   if (role !== "manager") return null;
 
+  // --- Save current road ---
   const saveCurrentRoad = () => {
-    if (currentPoints.length > 0) {
-      setEditingRoad(currentPoints);
-      setStatusMessage("");
+    if (currentPoints.length === 0) {
+      setStatusMessage("⚠️ Please draw a road first.");
+      return;
     }
+
+    const { lat, lng } = currentPoints[0];
+    setFormData((prev) => ({
+      ...prev,
+      location: prev.location || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    }));
+
+    setEditingRoad(currentPoints);
+    setStatusMessage("");
   };
 
+  // --- Cancel editing ---
   const cancelEditing = () => {
     setEditingRoad(null);
     setCurrentPoints([]);
-    setStatusMessage("Road creation cancelled");
+    setStatusMessage("Road creation cancelled.");
   };
 
+  // --- Submit form ---
   const submitRoadForm = async () => {
     if (!editingRoad) return;
 
+    const { name, location, builder_id, inspector_id, manager_id, status } = formData;
+
+    if (!name || !builder_id || !inspector_id || !manager_id) {
+      setStatusMessage("⚠️ Please fill all required fields.");
+      return;
+    }
+
     const payload = {
-      builder_id: parseInt(formData.builder_id, 10),
-      cost: parseFloat(formData.cost),
-      started_date: formData.started_date,
-      polyline: JSON.stringify(editingRoad),
+      name,
+      location,
+      polyline: editingRoad,
+      builder_id: parseInt(builder_id, 10),
+      inspector_id: parseInt(inspector_id, 10),
+      manager_id: parseInt(manager_id, 10),
+      status,
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_FAST_API}/employee/add_road`, {
+      const res = await fetch(`${import.meta.env.VITE_FLASK_API}/add_road`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -102,15 +124,22 @@ function AddRoad({ mapRef }) {
         setRoads([...roads, editingRoad]);
         setCurrentPoints([]);
         setEditingRoad(null);
-        setFormData({ builder_id: "", cost: "", started_date: "" });
-        setStatusMessage("Road successfully submitted");
+        setFormData({
+          name: "",
+          location: "",
+          builder_id: "",
+          inspector_id: "",
+          manager_id: "",
+          status: "planned",
+        });
+        setStatusMessage("✅ Road successfully submitted!");
       } else {
         const errText = await res.text();
-        setStatusMessage(`Error submitting road: ${errText}`);
+        setStatusMessage(`❌ Error submitting road: ${errText}`);
       }
     } catch (err) {
       console.error(err);
-      setStatusMessage(`Error submitting road: ${err.message}`);
+      setStatusMessage(`❌ Error submitting road: ${err.message}`);
     }
   };
 
@@ -135,43 +164,49 @@ function AddRoad({ mapRef }) {
       {editingRoad && (
         <div className="fixed inset-0 flex items-center justify-center bg-transparent bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded shadow-lg w-96">
-            <h2 className="text-xl font-bold mb-4">Assign Road Details</h2>
+            <h2 className="text-xl font-bold mb-4">Add Road Details</h2>
 
-            <label className="block mb-2">
-              Builder ID:
-              <input
-                type="number"
-                value={formData.builder_id}
-                onChange={(e) => setFormData({ ...formData, builder_id: e.target.value })}
-                className="w-full border px-2 py-1 rounded mt-1"
-              />
-            </label>
-
-            <label className="block mb-2">
-              Cost (₹):
-              <input
-                type="number"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                className="w-full border px-2 py-1 rounded mt-1"
-              />
-            </label>
+            {["name", "location", "builder_id", "inspector_id", "manager_id"].map((field) => (
+              <label key={field} className="block mb-2">
+                {field.replace("_", " ").toUpperCase()}:
+                <input
+                  type={field.includes("id") ? "number" : "text"}
+                  value={formData[field]}
+                  onChange={(e) =>
+                    setFormData({ ...formData, [field]: e.target.value })
+                  }
+                  className="w-full border px-2 py-1 rounded mt-1"
+                  required
+                />
+              </label>
+            ))}
 
             <label className="block mb-4">
-              Started Date:
-              <input
-                type="date"
-                value={formData.started_date}
-                onChange={(e) => setFormData({ ...formData, started_date: e.target.value })}
+              Status:
+              <select
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
                 className="w-full border px-2 py-1 rounded mt-1"
-              />
+              >
+                <option value="planned">Planned</option>
+                <option value="under construction">Under Construction</option>
+                <option value="maintaining">Maintaining</option>
+              </select>
             </label>
 
             <div className="flex justify-end gap-2">
-              <button onClick={cancelEditing} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              <button
+                onClick={cancelEditing}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
                 Cancel
               </button>
-              <button onClick={submitRoadForm} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500">
+              <button
+                onClick={submitRoadForm}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500"
+              >
                 Submit
               </button>
             </div>
@@ -179,7 +214,7 @@ function AddRoad({ mapRef }) {
         </div>
       )}
 
-      {/* Draw all saved roads */}
+      {/* Draw saved roads */}
       {roads.map((road, index) => (
         <Polyline
           key={index}
@@ -192,7 +227,12 @@ function AddRoad({ mapRef }) {
       {currentPoints.length > 0 && (
         <Polyline
           path={currentPoints}
-          options={{ strokeColor: "#0000FF", strokeOpacity: 0.7, strokeWeight: 3, strokeDasharray: [5, 5] }}
+          options={{
+            strokeColor: "#0000FF",
+            strokeOpacity: 0.7,
+            strokeWeight: 3,
+            strokeDasharray: [5, 5],
+          }}
         />
       )}
     </>
