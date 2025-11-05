@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { GoogleMap, LoadScript, Autocomplete, Polyline } from "@react-google-maps/api";
 
 const containerStyle = {
@@ -14,155 +14,185 @@ const defaultCenter = {
 function Add_Road_Map() {
   const [center, setCenter] = useState(defaultCenter);
   const [map, setMap] = useState(null);
-  const [currentRoad, setCurrentRoad] = useState([]); // rough points while drawing
-  const [roads, setRoads] = useState([]); // snapped roads
-  const [isSnapping, setIsSnapping] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentRoad, setCurrentRoad] = useState([]);
+  const [mapKey, setMapKey] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
   const autocompleteRef = useRef(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-  // ✅ Autocomplete setup
   const onLoad = (autocomplete) => (autocompleteRef.current = autocomplete);
   const onMapLoad = useCallback((mapInstance) => setMap(mapInstance), []);
 
   const onPlaceChanged = () => {
     const place = autocompleteRef.current?.getPlace();
     if (!place?.geometry) return;
-
-    if (place.geometry.viewport) {
-      map.fitBounds(place.geometry.viewport);
-    } else {
-      const location = place.geometry.location;
-      const newCenter = { lat: location.lat(), lng: location.lng() };
-      setCenter(newCenter);
-      map.setCenter(newCenter);
-      map.setZoom(25);
+    if (map) {
+      if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
+      else {
+        const loc = place.geometry.location;
+        const newCenter = { lat: loc.lat(), lng: loc.lng() };
+        setCenter(newCenter);
+        map.setCenter(newCenter);
+        map.setZoom(17);
+      }
     }
   };
 
-  // 🧭 Capture user clicks for rough line
-  const handleMapClick = (event) => {
-    if (isSnapping) return; // prevent clicks during snapping
+  const snapPointToRoad = async (lat, lng) => {
+    const url = `https://roads.googleapis.com/v1/snapToRoads?path=${lat},${lng}&key=${apiKey}`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.snappedPoints?.length > 0) {
+        const p = data.snappedPoints[0].location;
+        return { lat: p.latitude, lng: p.longitude };
+      }
+      return { lat, lng };
+    } catch (err) {
+      console.error("Snap error:", err);
+      return { lat, lng };
+    }
+  };
+
+  const handleAddRoad = () => {
+    setIsDrawing(true);
+    setCurrentRoad([]);
+  };
+
+  const handleMapClick = async (event) => {
+    if (!isDrawing) return;
+
     const lat = event.latLng.lat();
     const lng = event.latLng.lng();
-    setCurrentRoad((prev) => [...prev, { lat, lng }]);
-  };
 
-  // 🚀 Snap entire path using Roads API
-  const snapToRoads = async (path) => {
-    if (path.length < 2) return [];
+    let newPoints = [];
 
-    const pathString = path.map((p) => `${p.lat},${p.lng}`).join("|");
-    const url = `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${apiKey}`;
+    if (currentRoad.length === 0) {
+      const snapped = await snapPointToRoad(lat, lng);
+      newPoints = [snapped];
+    } else {
+      const lastPoint = currentRoad[currentRoad.length - 1];
+      const pathString = `${lastPoint.lat},${lastPoint.lng}|${lat},${lng}`;
+      const url = `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${apiKey}`;
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.snappedPoints) {
-        return data.snappedPoints.map((p) => ({
-          lat: p.location.latitude,
-          lng: p.location.longitude,
-        }));
-      } else {
-        console.warn("No snapped points found");
-        return [];
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.snappedPoints?.length > 0) {
+          newPoints = data.snappedPoints.map((p) => ({
+            lat: p.location.latitude,
+            lng: p.location.longitude,
+          }));
+        } else {
+          newPoints = [{ lat, lng }];
+        }
+      } catch (err) {
+        console.error("Snap error:", err);
+        newPoints = [{ lat, lng }];
       }
-    } catch (error) {
-      console.error("Error snapping to roads:", error);
-      return [];
     }
+
+    setCurrentRoad((prev) => [...prev, ...newPoints]);
   };
 
-  // 💾 Snap + Save
-  const handleSnapAndSave = async () => {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === "z" && isDrawing) {
+        setCurrentRoad((prev) => prev.slice(0, -1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDrawing]);
+
+  const handleSaveRoad = () => {
     if (currentRoad.length < 2) {
-      alert("Draw a road first by clicking at least two points.");
+      alert("Add at least 2 points before saving.");
       return;
     }
 
-    const pathToSnap = [...currentRoad];
-    setIsSnapping(true);
-    setCurrentRoad([]); // remove rough line immediately
-
-    const snapped = await snapToRoads(pathToSnap);
-    setIsSnapping(false);
-
-    if (snapped.length > 0) {
-      setRoads((prev) => [...prev, { id: Date.now(), coordinates: snapped }]);
-    } else {
-      alert("Could not snap to road. Try again.");
-    }
+    setIsSaving(true);
+    setIsDrawing(false);
+    setIsSaving(false);
   };
 
-  const handleClearRoads = () => {
-    setRoads([]);
-    setCurrentRoad([]);
+  const handleClearAll = () => {
+    if (confirm("Clear current road?")) {
+      setCurrentRoad([]);
+      setIsDrawing(false);
+    }
   };
 
   return (
     <LoadScript googleMapsApiKey={apiKey} libraries={["places"]}>
-      {/* 🔍 Search + Buttons */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2 bg-white/80 p-2 rounded-lg shadow-md">
         <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
           <input
             type="text"
             placeholder="Search location..."
-            className="w-80 px-4 py-2 rounded-lg shadow-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+            className="w-80 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
           />
         </Autocomplete>
 
         <button
-          onClick={handleSnapAndSave}
-          disabled={isSnapping}
+          onClick={handleAddRoad}
+          disabled={isDrawing}
           className={`px-4 py-2 rounded text-white transition ${
-            isSnapping ? "bg-gray-500 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+            isDrawing ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {isSnapping ? "Snapping..." : "Snap to Road"}
+          Add Road
         </button>
 
+        {isDrawing && (
+          <>
+            <button
+              onClick={handleSaveRoad}
+              className={`px-4 py-2 rounded text-white transition ${
+                isSaving ? "bg-gray-500" : "bg-green-600 hover:bg-green-700"
+              }`}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
+
+            <button
+              onClick={() => setCurrentRoad((prev) => prev.slice(0, -1))}
+              className="px-4 py-2 rounded text-white bg-yellow-500 hover:bg-yellow-600 transition"
+            >
+              Undo (Ctrl+Z)
+            </button>
+          </>
+        )}
+
         <button
-          onClick={handleClearRoads}
+          onClick={handleClearAll}
           className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
         >
           Clear
         </button>
       </div>
 
-      {/* 🗺️ Map */}
       <GoogleMap
+        key={mapKey}
         mapContainerStyle={containerStyle}
         center={center}
         zoom={17}
         onLoad={onMapLoad}
         onClick={handleMapClick}
       >
-        {/* ✳️ Rough user-drawn line (only while drawing) */}
+
         {currentRoad.length > 1 && (
           <Polyline
             path={currentRoad}
             options={{
-              strokeColor: "#FFA500",
-              strokeOpacity: 0.8,
-              strokeWeight: 3,
-              strokeDasharray: [8, 8],
-            }}
-          />
-        )}
-
-        {/* ✅ Render snapped (final) roads */}
-        {roads.map((road) => (
-          <Polyline
-            key={road.id}
-            path={road.coordinates}
-            options={{
-              strokeColor: "#00FF00",
+              strokeColor: "#00BFFF",
               strokeOpacity: 0.9,
               strokeWeight: 5,
             }}
           />
-        ))}
+        )}
       </GoogleMap>
     </LoadScript>
   );
