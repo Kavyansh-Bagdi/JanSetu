@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.builder import Builder
+import json
 from app.models.employee import Employee
 from app.models.road import Road
 from .schemas import RoadCreate
@@ -84,12 +85,18 @@ def get_inspector_roads(
     """
     inspector = session.query(Employee).filter(Employee.unique_id == inspector_unique_id).first()
     if not inspector:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inspector profile not found for provided unique id")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inspector profile not found for provided unique id"
+        )
 
     roads = session.query(Road).filter(Road.employee_id == inspector.unique_id).all()
 
     result = []
     for r in roads:
+        # ✅ Parse polyline data safely
+        raw_polyline = getattr(r, "polyline_data", None)
+
         result.append({
             "road_id": getattr(r, "road_id", None),
             "builder_id": getattr(r, "builder_id", None),
@@ -100,6 +107,7 @@ def get_inspector_roads(
             "status": getattr(r, "status", None),
             "chief_engineer": getattr(r, "chief_engineer", None),
             "date_verified": str(getattr(r, "date_verified", None)) if getattr(r, "date_verified", None) else None,
+            "polyline_data": raw_polyline, 
         })
 
     return {"count": len(result), "roads": result}

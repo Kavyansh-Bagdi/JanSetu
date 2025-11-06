@@ -38,7 +38,8 @@ def get_builder_roads(builder_id: int, session: Session = Depends(get_db)):
             "status": getattr(r, "status", None),
             "chief_engineer": getattr(r, "chief_engineer", None),
             "date_verified": str(getattr(r, "date_verified", None)) if getattr(r, "date_verified", None) else None,
-            "average_rating": average_rating  
+            "average_rating": average_rating,
+            "polyline_data": getattr(r,"polyline_data",None),
         })
 
     return {"count": len(result), "roads": result}

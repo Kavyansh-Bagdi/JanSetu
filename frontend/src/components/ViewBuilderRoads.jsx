@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Polyline } from "@react-google-maps/api";
 
 const statusColors = {
-  planned: "#1E90FF",             // Blue
-  "under construction": "#FFA500", // Orange
-  maintaining: "#32CD32",         // Green
+  planned: "#555", // dark gray
+  "under construction": "#888", // medium gray
+  maintaining: "#333", // darker gray
+  completed: "#000", // black
 };
 
 const ViewBuilderRoads = ({ onPolylineLoad }) => {
@@ -29,8 +30,6 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
         if (!res.ok) throw new Error("Failed to fetch builder roads");
 
         const data = await res.json();
-        console.log("✅ Builder Roads:", data);
-
         const formatted = (data.roads || []).map((r) => ({
           id: r.road_id,
           path: Array.isArray(r.polyline_data)
@@ -44,9 +43,7 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
           ended_date: r.ended_date,
           chief_engineer: r.chief_engineer || "N/A",
           date_verified: r.date_verified || "Not verified",
-          average_rating: r.average_rating,
         }));
-
         setRoads(formatted);
       } catch (err) {
         console.error(err);
@@ -59,55 +56,97 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
     fetchRoads();
   }, [submitted, builderId]);
 
-  const getRoadColor = (status) => statusColors[status] || "#000000";
+  const getRoadColor = (status) => statusColors[status] || "#555";
+
+  const getStreetViewImage = (road) => {
+    if (!road.path?.length) return null;
+    const { lat, lng } = road.path[0];
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    return `https://maps.googleapis.com/maps/api/streetview?size=400x200&location=${lat},${lng}&key=${apiKey}`;
+  };
 
   return (
-    <>
-      {/* 🔹 Ask for Builder ID */}
+    <div style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+      {/* Builder Login */}
       {!submitted && (
-        <div className="absolute top-5 left-5 bg-white bg-opacity-95 shadow-lg rounded-lg p-4 z-50 pointer-events-auto">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (builderId.trim()) setSubmitted(true);
-            }}
-          >
-            <h2 className="text-md font-semibold mb-2">Enter Builder ID</h2>
+        <div style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          width: "320px",
+          padding: "20px",
+          backgroundColor: "whitesmoke",
+          border: "2px solid #ccc",
+          borderRadius: "8px",
+          color: "#222",
+          fontSize: "14px"
+        }}>
+          <h2 style={{ margin: "0 0 10px 0", fontSize: "22px", fontWeight: "bold" }}>Builder Login</h2>
+          <p style={{ marginBottom: "10px", fontSize: "13px" }}>Enter your Builder ID to view your roads.</p>
+          <form onSubmit={(e) => { e.preventDefault(); if (builderId.trim()) setSubmitted(true); }}>
             <input
-              type="number"
+              type="text"
               value={builderId}
               onChange={(e) => setBuilderId(e.target.value)}
               placeholder="Builder ID"
-              className="w-48 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring focus:ring-blue-200 text-sm"
-              required
+              style={{
+                width: "100%",
+                padding: "8px",
+                marginBottom: "10px",
+                border: "1px solid #999",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
             />
-            <button
-              type="submit"
-              className="ml-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-500"
-            >
-              View
+            <button type="submit" style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#444",
+              color: "white",
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "14px"
+            }}>
+              View Roads
             </button>
           </form>
         </div>
       )}
 
-      {/* 🔹 Loading / Error Messages */}
-      {submitted && (
-        <>
-          {loading && (
-            <div className="absolute top-5 left-5 bg-white shadow-md rounded px-3 py-2 text-sm z-50">
-              Loading assigned roads...
-            </div>
-          )}
-          {error && (
-            <div className="absolute top-5 left-5 bg-red-100 text-red-700 shadow-md rounded px-3 py-2 text-sm z-50">
-              Error: {error}
-            </div>
-          )}
-        </>
+      {/* Loading / Error */}
+      {submitted && loading && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          left: "20px",
+          padding: "10px",
+          backgroundColor: "whitesmoke",
+          border: "1px solid #999",
+          borderRadius: "4px",
+          fontSize: "13px",
+        }}>
+          Loading roads...
+        </div>
+      )}
+      {submitted && error && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          left: "20px",
+          padding: "10px",
+          backgroundColor: "#f8f8f8",
+          border: "1px solid #999",
+          borderRadius: "4px",
+          color: "#222",
+          fontSize: "13px",
+        }}>
+          ⚠️ {error}
+        </div>
       )}
 
-      {/* 🔹 Render Builder Roads */}
+      {/* Road Polylines */}
       {roads.map((road) => (
         <Polyline
           key={road.id}
@@ -118,40 +157,68 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
             strokeWeight: 4,
           }}
           onClick={() => setSelectedRoad(road)}
-          onLoad={(polyline) => {
-            if (typeof onPolylineLoad === "function") onPolylineLoad(polyline);
-          }}
+          onLoad={(polyline) => typeof onPolylineLoad === "function" && onPolylineLoad(polyline)}
         />
       ))}
 
-      {/* 🔹 Road Info Modal */}
+      {/* Drawer */}
       {selectedRoad && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96 relative">
-            <button
-              onClick={() => setSelectedRoad(null)}
-              className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 text-xl"
-            >
-              ×
-            </button>
-            <h2 className="text-lg font-bold mb-3">
-              Road ID: {selectedRoad.id}
-            </h2>
-            <ul className="text-sm space-y-1">
-              <li><strong>Status:</strong> {selectedRoad.status}</li>
-              <li><strong>Builder ID:</strong> {selectedRoad.builder_id}</li>
-              <li><strong>Maintained By:</strong> {selectedRoad.maintained_by}</li>
-              <li><strong>Cost:</strong> ₹{selectedRoad.cost}</li>
-              <li><strong>Start Date:</strong> {selectedRoad.started_date}</li>
-              <li><strong>End Date:</strong> {selectedRoad.ended_date}</li>
-              <li><strong>Chief Engineer:</strong> {selectedRoad.chief_engineer}</li>
-              <li><strong>Date Verified:</strong> {selectedRoad.date_verified}</li>
-              <li><strong>Average Rating:</strong> {selectedRoad.average_rating ?? "No ratings yet"}</li>
-            </ul>
+        <div style={{
+          position: "fixed",
+          top: "0",
+          right: "0",
+          width: "400px",
+          height: "100%",
+          backgroundColor: "white",
+          borderLeft: "2px solid #ccc",
+          padding: "20px",
+          overflowY: "auto",
+          fontFamily: "Helvetica, Arial, sans-serif",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: "bold" }}>Road Details</h2>
+            <button onClick={() => setSelectedRoad(null)} style={{ cursor: "pointer", fontSize: "20px" }}>×</button>
           </div>
+
+          {getStreetViewImage(selectedRoad) ? (
+            <img
+              src={getStreetViewImage(selectedRoad)}
+              alt="Street View"
+              style={{ width: "100%", height: "200px", objectFit: "cover", marginBottom: "10px", border: "1px solid #ccc" }}
+            />
+          ) : (
+            <div style={{
+              width: "100%",
+              height: "200px",
+              backgroundColor: "#eee",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid #ccc",
+              marginBottom: "10px"
+            }}>
+              No Image Available
+            </div>
+          )}
+
+          {Object.entries({
+            Status: selectedRoad.status,
+            "Builder ID": selectedRoad.builder_id,
+            "Maintained By": selectedRoad.maintained_by,
+            Cost: `₹${selectedRoad.cost}`,
+            "Start Date": selectedRoad.started_date,
+            "End Date": selectedRoad.ended_date,
+            "Chief Engineer": selectedRoad.chief_engineer,
+            "Date Verified": selectedRoad.date_verified,
+          }).map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px" }}>
+              <span style={{ fontWeight: "bold" }}>{label}:</span>
+              <span>{value}</span>
+            </div>
+          ))}
         </div>
       )}
-    </>
+    </div>
   );
 };
 

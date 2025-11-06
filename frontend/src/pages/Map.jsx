@@ -39,22 +39,41 @@ function Map() {
   const mapKey = `map-${role}`;
 
   return (
-    <>
+    <div style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
       <NavBar />
 
+      {/* Manager Add Road Button */}
       {/* Manager Add Button */}
       {role === "manager" && (
         <button
           onClick={() => setAddRoadMode((prev) => !prev)}
-          className={`w-14 h-14 flex items-center justify-center rounded-full cursor-pointer transition ${
-            addRoadMode
-              ? "bg-white text-blue-600 hover:bg-blue-500 hover:text-white"
-              : "bg-blue-600 text-white hover:bg-white hover:text-blue-600"
-          } absolute top-4 right-4 z-50`}
+          style={{
+            position: "absolute",
+            top: "16px",
+            right: "16px",
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            border: "none",
+            backgroundColor: addRoadMode ? "#EEEEEE" : "#00ADB5",
+            color: addRoadMode ? "#00ADB5" : "#FFFFFF",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontSize: "14px",
+            zIndex: 1000,
+            boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s ease-in-out",
+          }}
+          onMouseEnter={(e) => (e.target.style.opacity = 0.9)}
+          onMouseLeave={(e) => (e.target.style.opacity = 1)}
         >
-          {addRoadMode ? "Stop" : "Add"}
+          {addRoadMode ? "+" : "Add"}
         </button>
       )}
+
 
       <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
         <GoogleMap
@@ -70,8 +89,12 @@ function Map() {
             zoomControl: false,
             scaleControl: false,
             rotateControl: false,
+            mapId: "YOUR_MAP_ID_IF_ANY",
+            draggableCursor: role === "manager" ? "crosshair" : "grab",
+            draggingCursor: role === "manager" ? "crosshair" : "grabbing",
           }}
         >
+
           {/* Manager Mode */}
           {role === "manager" && addRoadMode && <AddRoad mapRef={mapRef} />}
 
@@ -95,7 +118,7 @@ function Map() {
           )}
         </GoogleMap>
       </LoadScript>
-    </>
+    </div>
   );
 }
 

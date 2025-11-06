@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Polyline } from "@react-google-maps/api";
 
 const statusColors = {
-  planned: "#1E90FF",             // Blue
-  "under construction": "#FFA500", // Orange
-  maintaining: "#32CD32",         // Green
+  planned: "#555", // dark gray
+  "under construction": "#888", // medium gray
+  maintaining: "#333", // darker gray
+  completed: "#000", // black
 };
 
 const ViewInspectorRoads = ({ onPolylineLoad }) => {
@@ -12,27 +13,22 @@ const ViewInspectorRoads = ({ onPolylineLoad }) => {
   const [submitted, setSubmitted] = useState(false);
   const [roads, setRoads] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [selectedRoad, setSelectedRoad] = useState(null);
+  const [error, setError] = useState(null);
 
-  // 🧩 Fetch assigned roads for the inspector
   useEffect(() => {
     if (!submitted || !inspectorId) return;
 
     const fetchRoads = async () => {
       setLoading(true);
       setError(null);
-
       try {
         const res = await fetch(
           `${import.meta.env.VITE_FLASK_API}/employee/inspector/roads?inspector_unique_id=${inspectorId}`
         );
         if (!res.ok) throw new Error("Failed to fetch inspector roads");
-
         const data = await res.json();
-        console.log("✅ Inspector Roads:", data);
 
-        // ✅ Format polyline & other info
         const formatted = (data.roads || []).map((r) => ({
           id: r.road_id,
           path: r.polyline_data || [],
@@ -58,55 +54,130 @@ const ViewInspectorRoads = ({ onPolylineLoad }) => {
     fetchRoads();
   }, [submitted, inspectorId]);
 
-  const getRoadColor = (status) => statusColors[status] || "#000000";
+  const getRoadColor = (status) => statusColors[status] || "#555";
+
+  const getStreetViewImage = (road) => {
+    if (!road.path?.length) return null;
+    const { lat, lng } = road.path[0];
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    return `https://maps.googleapis.com/maps/api/streetview?size=400x200&location=${lat},${lng}&key=${apiKey}`;
+  };
+
+  const handleVerify = async (road) => {
+    try {
+      const res = await fetch(`http://localhost:8000/builder/roads/${road.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          builder_unique_id: road.builder_id,
+          chief_engineer: road.chief_engineer,
+          status: "completed",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to verify road");
+
+      const today = new Date().toISOString().split("T")[0];
+
+      setRoads((prev) =>
+        prev.map((r) =>
+          r.id === road.id ? { ...r, status: "completed", date_verified: today } : r
+        )
+      );
+
+      setSelectedRoad((prev) =>
+        prev ? { ...prev, status: "completed", date_verified: today } : null
+      );
+
+      alert("✅ Road verified successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Verification failed: " + err.message);
+    }
+  };
 
   return (
-    <>
-      {/* 🔹 Ask for Inspector ID */}
+    <div style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+      {/* Inspector Login */}
       {!submitted && (
-        <div className="absolute top-5 left-5 bg-white bg-opacity-95 shadow-lg rounded-lg p-4 z-50 pointer-events-auto">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (inspectorId.trim()) setSubmitted(true);
-            }}
-          >
-            <h2 className="text-md font-semibold mb-2">Enter Inspector ID</h2>
+        <div style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          width: "320px",
+          padding: "20px",
+          backgroundColor: "whitesmoke",
+          border: "2px solid #ccc",
+          borderRadius: "8px",
+          color: "#222",
+          fontSize: "14px"
+        }}>
+          <h2 style={{ margin: "0 0 10px 0", fontSize: "22px", fontWeight: "bold" }}>Inspector Login</h2>
+          <p style={{ marginBottom: "10px", fontSize: "13px" }}>Enter your Inspector ID to view assigned roads.</p>
+          <form onSubmit={(e) => { e.preventDefault(); if (inspectorId.trim()) setSubmitted(true); }}>
             <input
-              type="number"
+              type="text"
               value={inspectorId}
               onChange={(e) => setInspectorId(e.target.value)}
               placeholder="Inspector ID"
-              className="w-48 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring focus:ring-blue-200 text-sm"
-              required
+              style={{
+                width: "100%",
+                padding: "8px",
+                marginBottom: "10px",
+                border: "1px solid #999",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
             />
-            <button
-              type="submit"
-              className="ml-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-500"
-            >
-              View
+            <button type="submit" style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#444",
+              color: "white",
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "14px"
+            }}>
+              View Roads
             </button>
           </form>
         </div>
       )}
 
-      {/* 🔹 Loading / Error Messages */}
-      {submitted && (
-        <>
-          {loading && (
-            <div className="absolute top-5 left-5 bg-white shadow-md rounded px-3 py-2 text-sm z-50">
-              Loading assigned roads...
-            </div>
-          )}
-          {error && (
-            <div className="absolute top-5 left-5 bg-red-100 text-red-700 shadow-md rounded px-3 py-2 text-sm z-50">
-              Error: {error}
-            </div>
-          )}
-        </>
+      {/* Loading / Error */}
+      {submitted && loading && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          left: "20px",
+          padding: "10px",
+          backgroundColor: "whitesmoke",
+          border: "1px solid #999",
+          borderRadius: "4px",
+          fontSize: "13px",
+        }}>
+          Loading assigned roads...
+        </div>
+      )}
+      {submitted && error && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          left: "20px",
+          padding: "10px",
+          backgroundColor: "#f8f8f8",
+          border: "1px solid #999",
+          borderRadius: "4px",
+          color: "#222",
+          fontSize: "13px",
+        }}>
+          ⚠️ {error}
+        </div>
       )}
 
-      {/* 🔹 Render Inspector Roads */}
+      {/* Road Polylines */}
       {roads.map((road) => (
         <Polyline
           key={road.id}
@@ -117,39 +188,85 @@ const ViewInspectorRoads = ({ onPolylineLoad }) => {
             strokeWeight: 4,
           }}
           onClick={() => setSelectedRoad(road)}
-          onLoad={(polyline) => {
-            if (typeof onPolylineLoad === "function") onPolylineLoad(polyline);
-          }}
+          onLoad={(polyline) => typeof onPolylineLoad === "function" && onPolylineLoad(polyline)}
         />
       ))}
 
-      {/* 🔹 Show Details on Polyline Click */}
+      {/* Drawer */}
       {selectedRoad && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96 relative">
-            <button
-              onClick={() => setSelectedRoad(null)}
-              className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 text-xl"
-            >
-              ×
-            </button>
-            <h2 className="text-lg font-bold mb-3">
-              Road ID: {selectedRoad.id}
-            </h2>
-            <ul className="text-sm space-y-1">
-              <li><strong>Status:</strong> {selectedRoad.status}</li>
-              <li><strong>Builder ID:</strong> {selectedRoad.builder_id}</li>
-              <li><strong>Maintained By:</strong> {selectedRoad.maintained_by}</li>
-              <li><strong>Cost:</strong> ₹{selectedRoad.cost}</li>
-              <li><strong>Start Date:</strong> {selectedRoad.started_date}</li>
-              <li><strong>End Date:</strong> {selectedRoad.ended_date}</li>
-              <li><strong>Chief Engineer:</strong> {selectedRoad.chief_engineer}</li>
-              <li><strong>Date Verified:</strong> {selectedRoad.date_verified}</li>
-            </ul>
+        <div style={{
+          position: "fixed",
+          top: "0",
+          right: "0",
+          width: "400px",
+          height: "100%",
+          backgroundColor: "white",
+          borderLeft: "2px solid #ccc",
+          padding: "20px",
+          overflowY: "auto",
+          fontFamily: "Helvetica, Arial, sans-serif",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: "bold" }}>Road Details</h2>
+            <button onClick={() => setSelectedRoad(null)} style={{ cursor: "pointer", fontSize: "20px" }}>×</button>
           </div>
+
+          {getStreetViewImage(selectedRoad) ? (
+            <img
+              src={getStreetViewImage(selectedRoad)}
+              alt="Street View"
+              style={{ width: "100%", height: "200px", objectFit: "cover", marginBottom: "10px", border: "1px solid #ccc" }}
+            />
+          ) : (
+            <div style={{
+              width: "100%",
+              height: "200px",
+              backgroundColor: "#eee",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid #ccc",
+              marginBottom: "10px"
+            }}>
+              No Image Available
+            </div>
+          )}
+
+          {Object.entries({
+            Status: selectedRoad.status,
+            "Builder ID": selectedRoad.builder_id,
+            "Maintained By": selectedRoad.maintained_by,
+            Cost: `₹${selectedRoad.cost}`,
+            "Start Date": selectedRoad.started_date,
+            "End Date": selectedRoad.ended_date,
+            "Chief Engineer": selectedRoad.chief_engineer,
+            "Date Verified": selectedRoad.date_verified,
+          }).map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px" }}>
+              <span style={{ fontWeight: "bold" }}>{label}:</span>
+              <span>{value}</span>
+            </div>
+          ))}
+
+          {selectedRoad.status !== "completed" && (
+            <button onClick={() => handleVerify(selectedRoad)} style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#333",
+              color: "white",
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              marginTop: "10px",
+              fontSize: "14px"
+            }}>
+              Verify Road
+            </button>
+          )}
         </div>
       )}
-    </>
+    </div>
   );
 };
 
