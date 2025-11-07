@@ -1,0 +1,1083 @@
+openapi: 3.0.3
+info:
+  title: JanSetu API
+  description: |
+    JanSetu is a comprehensive road management system API that allows citizens to rate and review roads,
+    employees (inspectors/managers) to manage road projects, and builders to update road status.
+    
+    ## Authentication
+    Most endpoints require JWT authentication. Include the access token in the Authorization header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+  version: 1.0.0
+  contact:
+    name: JanSetu Team
+    email: support@jansetu.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.jansetu.com
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication and user management endpoints
+  - name: User
+    description: Citizen user endpoints for rating and reviewing roads
+  - name: Employee
+    description: Employee (Inspector/Manager) endpoints for road management
+  - name: Builder
+    description: Builder endpoints for updating road status
+
+paths:
+  # ============= AUTH ROUTES =============
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Create a new user account (citizen or employee)
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateModel'
+            example:
+              email: user@example.com
+              name: John Doe
+              password: securepassword123
+              age: 30
+              phone: "+1234567890"
+              user_type: citizen
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid input or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      description: Authenticate user and receive access and refresh tokens
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: securepassword123
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Get a new access token using a valid refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New access token generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout user
+      description: Invalidate the current refresh token
+      operationId: logoutUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/logout-all:
+    post:
+      tags:
+        - Auth
+      summary: Logout from all devices
+      description: Invalidate all refresh tokens for the current user
+      operationId: logoutAllDevices
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out from all devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user
+      description: Get the currently authenticated user's information
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============= USER ROUTES =============
+  /user/roads/{road_id}:
+    get:
+      tags:
+        - User
+      summary: Get road information
+      description: Get detailed information about a specific road including ratings and reviews
+      operationId: getRoadInfo
+      parameters:
+        - name: road_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the road to retrieve
+      responses:
+        '200':
+          description: Road information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadInfoResponse'
+        '404':
+          description: Road not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/roads/rate/:
+    post:
+      tags:
+        - User
+      summary: Rate a road
+      description: Submit a rating for a specific road (allows multiple ratings per user)
+      operationId: rateRoad
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingCreate'
+            example:
+              road_id: 1
+              rating: 4.5
+              location: "Near Main Bridge"
+      responses:
+        '201':
+          description: Rating created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatingResponse'
+        '404':
+          description: Road not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/roads/review/:
+    post:
+      tags:
+        - User
+      summary: Review a road with media
+      description: Submit a review with optional media file (image/video) upload
+      operationId: reviewRoad
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - road_id
+              properties:
+                road_id:
+                  type: integer
+                  description: ID of the road being reviewed
+                tags:
+                  type: string
+                  description: Comma-separated tags (e.g., "potholes,needs_repair,dangerous")
+                media_file:
+                  type: string
+                  format: binary
+                  description: Media file (image/video) - max 10MB
+            encoding:
+              media_file:
+                contentType: image/jpeg, image/png, image/gif, video/mp4, video/mov, video/avi
+      responses:
+        '201':
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '400':
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Road not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/roads/{road_id}/ratings/:
+    get:
+      tags:
+        - User
+      summary: Get road ratings
+      description: Get all ratings for a specific road
+      operationId: getRoadRatings
+      parameters:
+        - name: road_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the road
+      responses:
+        '200':
+          description: List of ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RatingResponse'
+        '404':
+          description: Road not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/roads/{road_id}/reviews:
+    get:
+      tags:
+        - User
+      summary: Get road reviews
+      description: Get all reviews for a specific road with tag frequency counts
+      operationId: getRoadReviews
+      parameters:
+        - name: road_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the road
+      responses:
+        '200':
+          description: Reviews and tag counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewsWithTagsResponse'
+        '404':
+          description: Road not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============= EMPLOYEE ROUTES =============
+  /employee/add_road:
+    post:
+      tags:
+        - Employee
+      summary: Create a new road
+      description: Manager/Inspector creates a new road project with polyline data
+      operationId: createRoad
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadCreate'
+            example:
+              builder_id: 4
+              cost: 5000000.00
+              started_date: "2024-01-15"
+              ended_date: "2024-12-31"
+              polyline:
+                - lat: 28.6139
+                  lng: 77.2090
+                - lat: 28.6149
+                  lng: 77.2100
+              inspector_assigned: 2
+              manager_unique_id: 3
+              date_verified: "2024-01-10"
+      responses:
+        '201':
+          description: Road created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadCreateResponse'
+        '400':
+          description: Invalid input (missing polyline, invalid builder, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Builder or employee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /employee/inspector/roads:
+    get:
+      tags:
+        - Employee
+      summary: Get inspector roads
+      description: Get all roads assigned to a specific inspector
+      operationId: getInspectorRoads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: inspector_unique_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Unique ID of the inspector
+      responses:
+        '200':
+          description: List of roads assigned to the inspector
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadsListResponse'
+        '400':
+          description: Inspector not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============= BUILDER ROUTES =============
+  /builder/{builder_id}/roads:
+    get:
+      tags:
+        - Builder
+      summary: Get builder roads
+      description: Get all roads assigned to a builder (as owner or maintainer)
+      operationId: getBuilderRoads
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: builder_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the builder
+      responses:
+        '200':
+          description: List of roads for the builder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadsListResponse'
+        '404':
+          description: Builder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /builder/roads/{road_id}:
+    patch:
+      tags:
+        - Builder
+      summary: Update road by builder
+      description: Builder updates road status, chief engineer, or verification date
+      operationId: updateRoadByBuilder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: road_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the road to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuilderRoadUpdate'
+            example:
+              builder_unique_id: 4
+              chief_engineer: "Rajesh Kumar"
+              status: "completed"
+              date_verified: "2025-11-07"
+      responses:
+        '200':
+          description: Road updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadUpdateResponse'
+        '400':
+          description: Nothing to update or missing builder_unique_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Builder not authorized to modify this road
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Road or builder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============= ROOT ROUTES =============
+  /:
+    get:
+      tags:
+        - General
+      summary: API Welcome
+      description: Get welcome message and list of all roads
+      operationId: getRoot
+      responses:
+        '200':
+          description: Welcome message with all roads data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Welcome to JanSetu API"
+                  docs:
+                    type: string
+                    example: "/docs"
+                  all_roads_data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoadBasic'
+
+  /health:
+    get:
+      tags:
+        - General
+      summary: Health check
+      description: Check if the API is running
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Authorization header using the Bearer scheme
+
+  schemas:
+    # ============= AUTH SCHEMAS =============
+    UserCreateModel:
+      type: object
+      required:
+        - email
+        - name
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          maxLength: 100
+          example: John Doe
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          example: securepassword123
+        age:
+          type: integer
+          nullable: true
+          example: 30
+        phone:
+          type: string
+          nullable: true
+          example: "+1234567890"
+        user_type:
+          type: string
+          default: citizen
+          enum:
+            - citizen
+            - employee
+          example: citizen
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: securepassword123
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    UserResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        user_type:
+          type: string
+          example: citizen
+        is_verified:
+          type: boolean
+          example: true
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00Z"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+        user:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: user@example.com
+            name:
+              type: string
+              example: John Doe
+
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Operation completed successfully
+
+    # ============= USER SCHEMAS =============
+    RatingCreate:
+      type: object
+      required:
+        - road_id
+        - rating
+        - location
+      properties:
+        road_id:
+          type: integer
+          minimum: 1
+          description: ID of the road being rated
+          example: 1
+        rating:
+          type: number
+          format: decimal
+          minimum: 0.0
+          maximum: 5.0
+          description: Rating value between 0.0 and 5.0
+          example: 4.5
+        location:
+          type: string
+          minLength: 1
+          description: Location where rating was given
+          example: Near Main Bridge
+
+    RatingResponse:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+          example: 1
+        road_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        rating:
+          type: number
+          format: decimal
+          example: 4.5
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-07T10:30:00Z"
+        location:
+          type: string
+          example: Near Main Bridge
+
+    ReviewCreate:
+      type: object
+      required:
+        - road_id
+      properties:
+        road_id:
+          type: integer
+          minimum: 1
+          description: ID of the road being reviewed
+          example: 1
+        media:
+          type: string
+          nullable: true
+          description: URL or path to media file
+          example: storage/review_media/abc123.jpg
+        tags:
+          type: string
+          nullable: true
+          description: Comma-separated tags
+          example: "potholes,needs_repair,dangerous"
+
+    ReviewResponse:
+      type: object
+      properties:
+        review_id:
+          type: integer
+          example: 1
+        road_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        media:
+          type: string
+          nullable: true
+          example: storage/review_media/abc123.jpg
+        tags:
+          type: string
+          nullable: true
+          example: "potholes,needs_repair"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-07T10:30:00Z"
+
+    RoadInfoResponse:
+      type: object
+      properties:
+        road_id:
+          type: integer
+          example: 1
+        builder_id:
+          type: integer
+          example: 4
+        builder_name:
+          type: string
+          example: ABC Construction Ltd
+        cost:
+          type: number
+          format: decimal
+          example: 5000000.00
+        employee_id:
+          type: integer
+          example: 2
+        employee_name:
+          type: string
+          example: Inspector Sharma
+        status:
+          type: string
+          example: under_construction
+        maintained_by:
+          type: integer
+          example: 4
+        maintainer_name:
+          type: string
+          example: ABC Construction Ltd
+        started_date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        ended_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-31"
+        verification_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-01-10"
+        chief_engineer:
+          type: string
+          example: Rajesh Kumar
+        average_rating:
+          type: number
+          format: decimal
+          nullable: true
+          example: 4.3
+        total_ratings:
+          type: integer
+          example: 15
+        total_reviews:
+          type: integer
+          example: 8
+
+    ReviewsWithTagsResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                example: 1
+              tags:
+                type: array
+                items:
+                  type: string
+                example: ["potholes", "needs_repair"]
+              comment:
+                type: string
+                example: "potholes"
+              media:
+                type: string
+                nullable: true
+                example: "http://localhost:8000/storage/review_media/abc123.jpg"
+              timestamp:
+                type: string
+                example: "2025-11-07 06:39:18.080023"
+        tag_counts:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            potholes: 5
+            needs_repair: 3
+            dangerous: 2
+
+    # ============= EMPLOYEE SCHEMAS =============
+    RoadCreate:
+      type: object
+      required:
+        - builder_id
+        - started_date
+        - polyline
+      properties:
+        builder_id:
+          type: integer
+          example: 4
+        cost:
+          type: number
+          format: decimal
+          default: 0
+          example: 5000000.00
+        started_date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        ended_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-31"
+        polyline:
+          type: array
+          description: Array of coordinate objects defining the road path
+          items:
+            type: object
+            additionalProperties: true
+          example:
+            - lat: 28.6139
+              lng: 77.2090
+            - lat: 28.6149
+              lng: 77.2100
+        inspector_assigned:
+          type: integer
+          nullable: true
+          description: Unique ID of the inspector employee
+          example: 2
+        manager_unique_id:
+          type: integer
+          nullable: true
+          description: Unique ID of the manager employee
+          example: 3
+        date_verified:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-01-10"
+
+    RoadCreateResponse:
+      type: object
+      properties:
+        road_id:
+          type: integer
+          example: 1
+        builder_id:
+          type: integer
+          example: 4
+        employee_id:
+          type: integer
+          example: 2
+        chief_engineer:
+          type: string
+          nullable: true
+          example: ""
+        started_date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        ended_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-31"
+
+    # ============= BUILDER SCHEMAS =============
+    BuilderRoadUpdate:
+      type: object
+      properties:
+        builder_unique_id:
+          type: integer
+          nullable: true
+          description: ID of the builder making the change (dev mode)
+          example: 4
+        chief_engineer:
+          type: string
+          maxLength: 200
+          nullable: true
+          example: Rajesh Kumar
+        date_verified:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-11-07"
+        status:
+          type: string
+          nullable: true
+          example: completed
+
+    RoadUpdateResponse:
+      type: object
+      properties:
+        road_id:
+          type: integer
+          example: 1
+        chief_engineer:
+          type: string
+          example: Rajesh Kumar
+        status:
+          type: string
+          example: completed
+
+    RoadsListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 5
+        roads:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoadBasic'
+
+    RoadBasic:
+      type: object
+      properties:
+        road_id:
+          type: integer
+          example: 1
+        builder_id:
+          type: integer
+          example: 4
+        maintained_by:
+          type: integer
+          example: 4
+        cost:
+          type: string
+          nullable: true
+          example: "5000000.00"
+        started_date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        ended_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-31"
+        status:
+          type: string
+          example: under_construction
+        chief_engineer:
+          type: string
+          nullable: true
+          example: Rajesh Kumar
+        date_verified:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-01-10"
+        average_rating:
+          type: number
+          format: decimal
+          nullable: true
+          example: 4.3
+        polyline_data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          example:
+            - lat: 28.6139
+              lng: 77.2090
+            - lat: 28.6149
+              lng: 77.2100
+
+    # ============= ERROR SCHEMAS =============
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Resource not found
