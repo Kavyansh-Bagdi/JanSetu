@@ -3,19 +3,16 @@ import { useRole } from "../components/RoleContext.jsx";
 import { Polyline } from "@react-google-maps/api";
 
 const statusColors = {
-  planned: "#00ADB5",
-  "under construction": "#FFCC00",
-  maintaining: "#32CD32",
+  planned: "#00ADB5", // Teal
+  "under construction": "#FFCC00", // Yellow
+  maintaining: "#32CD32", // Lime green
 };
 
-function AddRoad({ mapRef, onCancel }) {
+function AddNewRoad({ mapRef, onCancel }) {
   const { role } = useRole();
   const [roads, setRoads] = useState([]);
   const [currentPoints, setCurrentPoints] = useState([]);
   const [editingRoad, setEditingRoad] = useState(null);
-  const [snapping, setSnapping] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-
   const [formData, setFormData] = useState({
     builder_id: "",
     inspector_assigned: "",
@@ -24,82 +21,58 @@ function AddRoad({ mapRef, onCancel }) {
     ended_date: "",
     status: "planned",
   });
+  const [statusMessage, setStatusMessage] = useState("");
 
-  // 🛰️ Snap-to-Road API integration
-  const snapToRoads = async (points) => {
-    if (points.length < 2) return;
-    setSnapping(true);
-    const pathString = points.map((p) => `${p.lat},${p.lng}`).join("|");
-
-    try {
-      const res = await fetch(
-        `https://roads.googleapis.com/v1/snapToRoads?path=${pathString}&interpolate=true&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await res.json();
-
-      if (data.snappedPoints) {
-        const snapped = data.snappedPoints.map((p) => ({
-          lat: p.location.latitude,
-          lng: p.location.longitude,
-        }));
-        setCurrentPoints(snapped);
-      }
-    } catch (err) {
-      console.error("Snap-to-road error:", err);
-      setStatusMessage("⚠️ Snap-to-road failed");
-    } finally {
-      setSnapping(false);
-    }
-  };
-
-  // 🗺️ Map click listener
+  // 🗺️ Handle map click (no snapping)
   useEffect(() => {
     if (role !== "manager" || !mapRef.current) return;
     const map = mapRef.current;
 
     const clickListener = map.addListener("click", (e) => {
       const newPoint = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      const updated = [...currentPoints, newPoint];
-      setCurrentPoints(updated);
-      if (updated.length >= 2) snapToRoads(updated);
+      setCurrentPoints((prev) => [...prev, newPoint]);
     });
 
     const handleKeyDown = (e) => {
+      // Undo last point
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
         setCurrentPoints((prev) => prev.slice(0, -1));
         setStatusMessage("↩️ Last point removed");
       }
-      if (e.key === "Escape") handleCancel();
+      // Cancel current drawing
+      if (e.key === "Escape") cancelEditing();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      clickListener.remove();
+      if (clickListener) clickListener.remove();
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [currentPoints, mapRef, role]);
+  }, [mapRef, role]);
 
-  // 💾 Save road for details input
+  if (role !== "manager") return null;
+
+  // 💾 Save current road
   const saveCurrentRoad = () => {
-    if (!currentPoints.length) {
-      setStatusMessage("⚠️ Draw at least one point first");
+    if (currentPoints.length < 2) {
+      setStatusMessage("⚠️ Draw at least two points first");
       return;
     }
     setEditingRoad(currentPoints);
     setStatusMessage("");
   };
 
-  // 🧹 Clear current polyline
-  const clearCurrent = () => {
-    setCurrentPoints([]);
-    setStatusMessage("🧹 Cleared current path");
+  // ❌ Cancel editing (inside modal)
+  const cancelEditing = () => {
+    setEditingRoad(null);
+    setStatusMessage("❌ Road creation cancelled");
   };
 
-  // ❌ Cancel — resets and notifies parent
-  const handleCancel = () => {
-    setEditingRoad(null);
+  // 🔙 Cancel whole AddNewRoad flow
+  const handleCancelAll = () => {
     setCurrentPoints([]);
+    setEditingRoad(null);
     setFormData({
       builder_id: "",
       inspector_assigned: "",
@@ -108,17 +81,26 @@ function AddRoad({ mapRef, onCancel }) {
       ended_date: "",
       status: "planned",
     });
-    setStatusMessage("❌ Road creation cancelled");
-
-    if (onCancel) onCancel(); // 👈 informs Map.jsx
+    setStatusMessage("🛑 Add new road cancelled");
+    if (onCancel) onCancel(); // notify parent
   };
 
-  // 🚀 Submit road to backend
+  // 🧹 Clear drawing
+  const clearCurrent = () => {
+    setCurrentPoints([]);
+    setStatusMessage("🧹 Cleared current drawing");
+  };
+
+  // 📤 Submit road form
   const submitRoadForm = async () => {
-    if (!editingRoad) return;
+    if (!editingRoad) {
+      setStatusMessage("⚠️ No road drawn yet");
+      return;
+    }
+
     const { builder_id, inspector_assigned, cost, started_date, ended_date, status } = formData;
 
-    if (!builder_id || !inspector_assigned) {
+    if (!builder_id || !inspector_assigned || !cost || !started_date) {
       setStatusMessage("⚠️ Fill all required fields");
       return;
     }
@@ -146,8 +128,17 @@ function AddRoad({ mapRef, onCancel }) {
         return;
       }
 
-      setRoads([...roads, editingRoad]);
-      handleCancel();
+      setRoads((prev) => [...prev, editingRoad]);
+      setCurrentPoints([]);
+      setEditingRoad(null);
+      setFormData({
+        builder_id: "",
+        inspector_assigned: "",
+        cost: "",
+        started_date: "",
+        ended_date: "",
+        status: "planned",
+      });
       setStatusMessage("✅ Road submitted successfully!");
     } catch (err) {
       console.error(err);
@@ -155,11 +146,9 @@ function AddRoad({ mapRef, onCancel }) {
     }
   };
 
-  if (role !== "manager") return null;
-
   return (
     <>
-      {/* 🧭 Control Buttons */}
+      {/* 🎛️ Control Buttons */}
       <div
         style={{
           position: "fixed",
@@ -199,7 +188,7 @@ function AddRoad({ mapRef, onCancel }) {
         </button>
 
         <button
-          onClick={handleCancel}
+          onClick={handleCancelAll}
           style={{
             padding: "10px 16px",
             backgroundColor: "#FF3B30",
@@ -213,7 +202,7 @@ function AddRoad({ mapRef, onCancel }) {
         </button>
       </div>
 
-      {/* 🔔 Status Message */}
+      {/* 🟡 Status Message */}
       {statusMessage && (
         <div
           style={{
@@ -228,11 +217,11 @@ function AddRoad({ mapRef, onCancel }) {
             zIndex: 1000,
           }}
         >
-          {snapping ? "⏳ Snapping points..." : statusMessage}
+          {statusMessage}
         </div>
       )}
 
-      {/* 🧾 Road Details Modal */}
+      {/* 🧾 Form Modal */}
       {editingRoad && (
         <div
           style={{
@@ -255,32 +244,33 @@ function AddRoad({ mapRef, onCancel }) {
             }}
           >
             <h2 style={{ marginBottom: "12px" }}>Add Road Details</h2>
-
-            {["builder_id", "inspector_assigned", "cost", "started_date", "ended_date"].map((field) => (
-              <label key={field} style={{ display: "block", marginBottom: "10px" }}>
-                {field.replace("_", " ").toUpperCase()}:
-                <input
-                  type={
-                    field.includes("id") || field === "cost"
-                      ? "number"
-                      : field.includes("date")
-                      ? "date"
-                      : "text"
-                  }
-                  value={formData[field]}
-                  onChange={(e) =>
-                    setFormData({ ...formData, [field]: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "6px 8px",
-                    marginTop: "4px",
-                    border: "1px solid #393E46",
-                    borderRadius: "4px",
-                  }}
-                />
-              </label>
-            ))}
+            {["builder_id", "inspector_assigned", "cost", "started_date", "ended_date"].map(
+              (field) => (
+                <label key={field} style={{ display: "block", marginBottom: "10px" }}>
+                  {field.replace("_", " ").toUpperCase()}:
+                  <input
+                    type={
+                      field.includes("id") || field === "cost"
+                        ? "number"
+                        : field.includes("date")
+                        ? "date"
+                        : "text"
+                    }
+                    value={formData[field]}
+                    onChange={(e) =>
+                      setFormData({ ...formData, [field]: e.target.value })
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "6px 8px",
+                      marginTop: "4px",
+                      border: "1px solid #393E46",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </label>
+              )
+            )}
 
             <label style={{ display: "block", marginBottom: "10px" }}>
               Status:
@@ -312,7 +302,7 @@ function AddRoad({ mapRef, onCancel }) {
               }}
             >
               <button
-                onClick={handleCancel}
+                onClick={cancelEditing}
                 style={{
                   padding: "6px 12px",
                   backgroundColor: "#393E46",
@@ -326,6 +316,7 @@ function AddRoad({ mapRef, onCancel }) {
               </button>
               <button
                 onClick={submitRoadForm}
+                disabled={!formData.builder_id || !formData.inspector_assigned}
                 style={{
                   padding: "6px 12px",
                   backgroundColor: "#00ADB5",
@@ -333,6 +324,10 @@ function AddRoad({ mapRef, onCancel }) {
                   border: "none",
                   borderRadius: "4px",
                   cursor: "pointer",
+                  opacity:
+                    !formData.builder_id || !formData.inspector_assigned
+                      ? 0.6
+                      : 1,
                 }}
               >
                 Submit
@@ -342,7 +337,7 @@ function AddRoad({ mapRef, onCancel }) {
         </div>
       )}
 
-      {/* 🛣️ Drawn Roads */}
+      {/* 🛣️ Draw roads */}
       {roads.map((road, i) => (
         <Polyline
           key={i}
@@ -355,7 +350,7 @@ function AddRoad({ mapRef, onCancel }) {
         />
       ))}
 
-      {/* ✏️ Current Drawing */}
+      {/* ✏️ Current drawing */}
       {currentPoints.length > 0 && (
         <Polyline
           path={currentPoints}
@@ -371,4 +366,4 @@ function AddRoad({ mapRef, onCancel }) {
   );
 }
 
-export default AddRoad;
+export default AddNewRoad;
