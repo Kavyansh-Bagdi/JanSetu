@@ -78,19 +78,7 @@ class UserService:
                 detail="Road not found"
             )
         
-        # Check if user already rated this road
-        existing_rating = session.query(Rating).filter(
-            Rating.road_id == road_id,
-            Rating.user_id == user_id
-        ).first()
-        
-        if existing_rating:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="You have already rated this road"
-            )
-        
-        # Create new rating
+        # Create new rating (allow multiple ratings by the same user)
         new_rating = Rating(
             road_id=road_id,
             user_id=user_id,

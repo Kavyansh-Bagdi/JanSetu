@@ -65,6 +65,8 @@ const ViewInspectorRoads = ({ onPolylineLoad }) => {
 
   const handleVerify = async (road) => {
     try {
+      const today = new Date().toISOString().split("T")[0];
+      
       const res = await fetch(`http://localhost:8000/builder/roads/${road.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -72,12 +74,11 @@ const ViewInspectorRoads = ({ onPolylineLoad }) => {
           builder_unique_id: road.builder_id,
           chief_engineer: road.chief_engineer,
           status: "completed",
+          date_verified: today,
         }),
       });
 
       if (!res.ok) throw new Error("Failed to verify road");
-
-      const today = new Date().toISOString().split("T")[0];
 
       setRoads((prev) =>
         prev.map((r) =>

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.auth import auth_router
@@ -9,10 +10,17 @@ from app.user.routes import user_router
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from fastapi import Depends
+from pathlib import Path
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG
 )
+
+# Mount static files for serving uploaded media
+storage_path = Path("storage")
+storage_path.mkdir(exist_ok=True)
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 # Configure CORS
 app.add_middleware(

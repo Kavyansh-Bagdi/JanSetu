@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.builder import Builder
 from app.models.user import User
 from app.models.road import Road
@@ -129,7 +130,7 @@ async def get_road_reviews(
     """
     Fetch all reviews for a given road with tag frequency count.
     """
-    reviews = await user_service.get_reviews_for_road(road_id=road_id, session=session)
+    reviews = user_service.get_road_reviews(road_id=road_id, session=session)
 
     tag_counts = {}
     all_reviews = []
@@ -146,11 +147,17 @@ async def get_road_reviews(
                 tag_counts[tag] = 0
             tag_counts[tag] += 1
 
+        # Construct full media URL if media exists
+        media_url = None
+        if review.media:
+            media_url = f"{settings.API_URL}/{review.media}"
+
         all_reviews.append({
             "user_id": review.user_id,
             "tags": tags,
             "comment": review.tags.split(",")[0] if review.tags else "",
-            "created_at": str(review.created_at),
+            "media": media_url,
+            "timestamp": str(review.timestamp),
         })
 
     return {

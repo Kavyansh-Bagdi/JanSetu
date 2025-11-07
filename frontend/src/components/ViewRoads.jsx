@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Polyline } from "@react-google-maps/api";
+import DetailedReviews from "./DetailedReviews";
 
 const statusColors = {
   planned: "#1E90FF",             // blue
@@ -32,6 +33,8 @@ function ViewRoads() {
   const [submitting, setSubmitting] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [tagCounts, setTagCounts] = useState({});
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [showDetailedReviews, setShowDetailedReviews] = useState(false);
 
   useEffect(() => {
     const fetchRoads = async () => {
@@ -76,8 +79,8 @@ function ViewRoads() {
 
   const handleSubmitReview = async () => {
     if (!selectedRoad) return;
-    if (!comment.trim() && selectedTags.length === 0 && rating === 0) {
-      alert("Please provide at least one of: comment, tag, or rating.");
+    if (!comment.trim() && selectedTags.length === 0 && rating === 0 && !selectedFile) {
+      alert("Please provide at least one of: comment, tag, rating, or image.");
       return;
     }
 
@@ -91,6 +94,11 @@ function ViewRoads() {
       const reviewForm = new FormData();
       reviewForm.append("road_id", selectedRoad.id);
       reviewForm.append("tags", reviewText);
+      
+      // Add file if selected
+      if (selectedFile) {
+        reviewForm.append("media_file", selectedFile);
+      }
 
       await fetch(`${import.meta.env.VITE_FLASK_API}/user/roads/review/`, {
         method: "POST",
@@ -99,7 +107,7 @@ function ViewRoads() {
 
       // --- Submit rating ---
       if (rating > 0) {
-        await fetch(`${import.meta.env.VITE_FLASK_API}/user/roads/rate/`, {
+        const ratingResponse = await fetch(`${import.meta.env.VITE_FLASK_API}/user/roads/rate/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -108,6 +116,14 @@ function ViewRoads() {
             location: "Unknown",
           }),
         });
+        
+        if (!ratingResponse.ok) {
+          const errorData = await ratingResponse.text();
+          console.error("Rating submission failed:", errorData);
+          throw new Error(`Rating submission failed: ${ratingResponse.status}`);
+        }
+        
+        console.log("Rating submitted successfully");
       }
 
       // --- Refresh review list & tag counts ---
@@ -117,6 +133,7 @@ function ViewRoads() {
       setComment("");
       setSelectedTags([]);
       setRating(0);
+      setSelectedFile(null);
     } catch (err) {
       console.error(err);
       alert("❌ Failed to submit review: " + err.message);
@@ -356,6 +373,29 @@ function ViewRoads() {
             ))}
           </div>
 
+          {/* File Upload */}
+          <div style={{ marginBottom: "15px" }}>
+            <p style={{ fontWeight: "bold", marginBottom: "5px" }}>Upload Image (optional):</p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setSelectedFile(e.target.files[0])}
+              value=""
+              style={{
+                width: "100%",
+                padding: "8px",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                fontSize: "14px",
+              }}
+            />
+            {selectedFile && (
+              <p style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
+                Selected: {selectedFile.name}
+              </p>
+            )}
+          </div>
+
           {/* Submit */}
           <button
             onClick={handleSubmitReview}
@@ -369,9 +409,27 @@ function ViewRoads() {
               borderRadius: "6px",
               cursor: "pointer",
               fontWeight: "bold",
+              marginBottom: "10px",
             }}
           >
             {submitting ? "Submitting..." : "Submit Review"}
+          </button>
+
+          {/* Detailed Reviews Button */}
+          <button
+            onClick={() => setShowDetailedReviews(true)}
+            style={{
+              width: "100%",
+              padding: "10px",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            View Detailed Reviews
           </button>
 
           {/* --- Tag Summary --- */}
@@ -411,6 +469,14 @@ function ViewRoads() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Detailed Reviews Modal */}
+      {showDetailedReviews && selectedRoad && (
+        <DetailedReviews
+          roadId={selectedRoad.id}
+          onClose={() => setShowDetailedReviews(false)}
+        />
       )}
     </div>
   );

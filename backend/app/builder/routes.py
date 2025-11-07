@@ -78,6 +78,9 @@ def update_road_by_builder(
     if payload.status is not None:
         road.status = payload.status
         updated = True
+    if payload.date_verified is not None:
+        road.date_verified = payload.date_verified
+        updated = True
 
     if not updated:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing to update")
