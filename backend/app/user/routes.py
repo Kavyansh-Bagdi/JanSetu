@@ -121,14 +121,40 @@ def get_road_ratings(
     return ratings
 
 
-@user_router.get('/roads/{road_id}/reviews/', response_model=List[ReviewResponse], status_code=status.HTTP_200_OK)
-def get_road_reviews(
+@user_router.get("/roads/{road_id}/reviews", response_model=dict)
+async def get_road_reviews(
     road_id: int,
     session: Session = Depends(get_db)
 ):
     """
-    Get all reviews for a specific road.
+    Fetch all reviews for a given road with tag frequency count.
     """
-    reviews = user_service.get_road_reviews(road_id, session)
-    return reviews
+    reviews = await user_service.get_reviews_for_road(road_id=road_id, session=session)
+
+    tag_counts = {}
+    all_reviews = []
+
+    for review in reviews:
+        # Split tags safely
+        tags = []
+        if review.tags:
+            tags = [t.strip() for t in review.tags.split(",") if t.strip() and not t.isdigit()]
+
+        # Update tag counts
+        for tag in tags:
+            if tag not in tag_counts:
+                tag_counts[tag] = 0
+            tag_counts[tag] += 1
+
+        all_reviews.append({
+            "user_id": review.user_id,
+            "tags": tags,
+            "comment": review.tags.split(",")[0] if review.tags else "",
+            "created_at": str(review.created_at),
+        })
+
+    return {
+        "reviews": all_reviews,
+        "tag_counts": tag_counts,
+    }
 
