@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Polyline } from "@react-google-maps/api";
+import DetailedReviews from "./DetailedReviews";
 
 const statusColors = {
   planned: "#1E90FF",
@@ -17,6 +18,7 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
   const [selectedRoad, setSelectedRoad] = useState(null);
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [formData, setFormData] = useState({ chief_engineer: "", status: "" });
+  const [showDetailedReviews, setShowDetailedReviews] = useState(false);
 
   useEffect(() => {
     if (!submitted || !builderId) return;
@@ -339,7 +341,7 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
       </div>
     ))}
 
-    {/* Update Button */}
+    {/* Action Buttons */}
     <button
       onClick={() => setShowUpdateForm((prev) => !prev)}
       style={{
@@ -352,9 +354,27 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
         borderRadius: "4px",
         cursor: "pointer",
         fontWeight: "bold",
+        marginBottom: "10px",
       }}
     >
       {showUpdateForm ? "Cancel Update" : "Update Details"}
+    </button>
+
+    {/* View Detailed Reviews Button */}
+    <button
+      onClick={() => setShowDetailedReviews(true)}
+      style={{
+        width: "100%",
+        padding: "10px",
+        backgroundColor: "#4CAF50",
+        color: "white",
+        border: "none",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      View Reviews & Ratings
     </button>
 
     {/* Update Form */}
@@ -431,6 +451,13 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
   </div>
 )}
 
+      {/* Detailed Reviews Modal */}
+      {showDetailedReviews && selectedRoad && (
+        <DetailedReviews
+          roadId={selectedRoad.id}
+          onClose={() => setShowDetailedReviews(false)}
+        />
+      )}
     </div>
   );
 };
