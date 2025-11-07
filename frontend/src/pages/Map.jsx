@@ -160,6 +160,75 @@ function Map() {
         </>
       )}
 
+      {/* 🗺️ Road Status Legend */}
+<div
+  style={{
+    position: "absolute",
+    bottom: "20px",
+    left: "20px",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    border: "1px solid #000",
+    padding: "12px 16px",
+    fontSize: "16px",
+    zIndex: 1000,
+  }}
+>
+  <p style={{ margin: "0 0 6px 0", fontWeight: "bold" }}>Road Status Legend</p>
+
+  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+    <span
+      style={{
+        display: "inline-block",
+        width: "18px",
+        height: "18px",
+        backgroundColor: "#1E90FF",
+        marginRight: "8px",
+      }}
+    ></span>
+    Planned
+  </div>
+
+  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+    <span
+      style={{
+        display: "inline-block",
+        width: "18px",
+        height: "18px",
+        backgroundColor: "#FF0000",
+        marginRight: "8px",
+      }}
+    ></span>
+    Under Construction
+  </div>
+
+  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+    <span
+      style={{
+        display: "inline-block",
+        width: "18px",
+        height: "18px",
+        backgroundColor: "#FFA500",
+        marginRight: "8px",
+      }}
+    ></span>
+    Maintaining
+  </div>
+
+  <div style={{ display: "flex", alignItems: "center" }}>
+    <span
+      style={{
+        display: "inline-block",
+        width: "18px",
+        height: "18px",
+        backgroundColor: "#32CD32",
+        marginRight: "8px",
+      }}
+    ></span>
+    Completed
+  </div>
+</div>
+
+
       {/* 🗺️ Google Map */}
       <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
         <GoogleMap

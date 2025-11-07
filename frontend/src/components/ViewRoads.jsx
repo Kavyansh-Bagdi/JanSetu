@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Polyline } from "@react-google-maps/api";
 import DetailedReviews from "./DetailedReviews";
 
+// --- Road status colors ---
 const statusColors = {
-  planned: "#1E90FF",             // blue
-  "under construction": "#FFA500", // orange
-  maintaining: "#32CD32",         // green
-  completed: "#000",              // black
+  planned: "#1E90FF",            // Blue  (Planned)
+  "under_construction": "#FF0000", // Red   (Under Construction)
+  maintaining: "#FFA500",        // Orange (Maintaining)
+  completed: "#32CD32",          // Green  (Completed)
 };
 
 const conditionTags = [

@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { useRole } from "../components/RoleContext.jsx";
 import { Polyline } from "@react-google-maps/api";
 
+// --- Road status colors ---
 const statusColors = {
-  planned: "#00ADB5",
-  "under construction": "#FFCC00",
-  maintaining: "#32CD32",
+  planned: "#1E90FF",            // Blue  (Planned)
+  "under_construction": "#FF0000", // Red   (Under Construction)
+  maintaining: "#FFA500",        // Orange (Maintaining)
+  completed: "#32CD32",          // Green  (Completed)
 };
 
 function AddRoad({ mapRef, onCancel }) {

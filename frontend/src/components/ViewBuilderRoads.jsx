@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Polyline } from "@react-google-maps/api";
 import DetailedReviews from "./DetailedReviews";
 
+// --- Road status colors ---
 const statusColors = {
-  planned: "#1E90FF",
-  "under construction": "#FFA500",
-  maintaining: "#32CD32",
-  completed: "#000",
+  planned: "#1E90FF",            // Blue  (Planned)
+  "under construction": "#FF0000", // Red   (Under Construction)
+  maintaining: "#FFA500",        // Orange (Maintaining)
+  completed: "#32CD32",          // Green  (Completed)
 };
 
 const ViewBuilderRoads = ({ onPolylineLoad }) => {
@@ -60,7 +61,7 @@ const ViewBuilderRoads = ({ onPolylineLoad }) => {
     fetchRoads();
   }, [submitted, builderId]);
 
-  const getRoadColor = (status) => statusColors[status] || "#555";
+  const getRoadColor = (status) => statusColors[status];
 
   const getStreetViewImage = (road) => {
     if (!road.path?.length) return null;
